@@ -30,6 +30,12 @@ dram: Memory.MappedMemory @ sysbus 0x80000000
 scu: Miscellaneous.Aspeed_SCU @ sysbus 0x1E6E2000
 
 
+fmc: SPI.Aspeed_FMC @ sysbus 0x1E620000
+    [0] -> gic@[39]
+
+flash: Memory.MappedMemory @ sysbus 0x20000000
+    size: 0x8000000
+
 sdmc: Miscellaneous.Aspeed_SDMC @ sysbus 0x1E6E0000
 
 timer: Timers.Aspeed_Timer @ sysbus 0x1E782000
