@@ -1,6 +1,10 @@
 // Aspeed AST2600 EVB - Minimal platform for development
 // Dual Cortex-A7, GICv2, UART, SCU
 
+// Boot ROM alias: AST2600 maps SPI flash to 0x0 at reset
+bootrom: Memory.MappedMemory @ sysbus 0x0
+    size: 0x20000
+
 cpu0: CPU.ARMv7A @ sysbus
     cpuType: "cortex-a7"
     genericInterruptController: gic
