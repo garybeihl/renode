@@ -1,0 +1,34 @@
+// Aspeed AST2600 EVB - Minimal platform for development
+// Dual Cortex-A7, GICv2, UART, SCU
+
+cpu0: CPU.ARMv7A @ sysbus
+    cpuType: "cortex-a7"
+    genericInterruptController: gic
+    cpuId: 0
+
+cpu1: CPU.ARMv7A @ sysbus
+    cpuType: "cortex-a7"
+    genericInterruptController: gic
+    cpuId: 1
+    init:
+        IsHalted true
+
+gic: IRQControllers.ARM_GenericInterruptController @ {
+        sysbus new Bus.BusMultiRegistration { address: 0x40461000; size: 0x1000; region: "distributor" };
+        sysbus new Bus.BusMultiRegistration { address: 0x40462000; size: 0x2000; region: "cpuInterface" }
+    }
+    [0-1] -> cpu0@[0-1]
+    [2-3] -> cpu1@[0-1]
+    architectureVersion: IRQControllers.ARM_GenericInterruptControllerVersion.GICv2
+
+sram: Memory.MappedMemory @ sysbus 0x10000000
+    size: 0x16400
+
+dram: Memory.MappedMemory @ sysbus 0x80000000
+    size: 0x40000000
+
+scu: Miscellaneous.Aspeed_SCU @ sysbus 0x1E6E2000
+
+uart5: UART.NS16550 @ sysbus 0x1E784000
+    wideRegisters: false
+    IRQ -> gic@63
