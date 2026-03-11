@@ -29,6 +29,20 @@ dram: Memory.MappedMemory @ sysbus 0x80000000
 
 scu: Miscellaneous.Aspeed_SCU @ sysbus 0x1E6E2000
 
+
+sdmc: Miscellaneous.Aspeed_SDMC @ sysbus 0x1E6E0000
+
+timer: Timers.Aspeed_Timer @ sysbus 0x1E782000
+    [0-7] -> gic@[16-23]
+
+wdt1: Timers.Aspeed_WDT @ sysbus 0x1E785000
+
+wdt2: Timers.Aspeed_WDT @ sysbus 0x1E785040
+
+wdt3: Timers.Aspeed_WDT @ sysbus 0x1E785080
+
+wdt4: Timers.Aspeed_WDT @ sysbus 0x1E7850C0
+
 uart5: UART.NS16550 @ sysbus 0x1E784000
     wideRegisters: false
     IRQ -> gic@63
