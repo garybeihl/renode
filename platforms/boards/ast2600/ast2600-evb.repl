@@ -17,6 +17,18 @@ cpu1: CPU.ARMv7A @ sysbus
     init:
         IsHalted true
 
+gentimer0: Timers.ARM_GenericTimer @ cpu0
+    frequency: 25000000
+    EL1PhysicalTimerIRQ -> gic#0@30
+    EL1VirtualTimerIRQ -> gic#0@27
+    NonSecureEL2PhysicalTimerIRQ -> gic#0@26
+
+gentimer1: Timers.ARM_GenericTimer @ cpu1
+    frequency: 25000000
+    EL1PhysicalTimerIRQ -> gic#1@30
+    EL1VirtualTimerIRQ -> gic#1@27
+    NonSecureEL2PhysicalTimerIRQ -> gic#1@26
+
 gic: IRQControllers.ARM_GenericInterruptController @ {
         sysbus new Bus.BusMultiRegistration { address: 0x40461000; size: 0x1000; region: "distributor" };
         sysbus new Bus.BusMultiRegistration { address: 0x40462000; size: 0x2000; region: "cpuInterface" }

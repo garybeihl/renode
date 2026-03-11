@@ -5,7 +5,7 @@ ${CLK_STOP1}            0x010
 ${CLK_STOP1_CLR}        0x014
 ${HW_STRAP1}            0x040
 ${RESET_CTRL1}          0x050
-${HW_STRAP2}            0x200
+${HW_STRAP2}            0x510
 ${HW_STRAP_SEC}         0x500
 
 ${UNLOCK_KEY}           0x1688A8A8
