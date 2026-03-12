@@ -100,3 +100,6 @@ hace: Miscellaneous.Aspeed_HACE @ sysbus 0x1E6D0000
 
 espi: Miscellaneous.Aspeed_eSPI @ sysbus 0x1E6EE000
     IRQ -> gic@42
+
+adc: Miscellaneous.Aspeed_ADC @ sysbus 0x1E6E9000
+    IRQ -> gic@46
