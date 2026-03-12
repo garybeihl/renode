@@ -25,6 +25,7 @@ The platform models an Aspeed AST2600 BMC SoC:
 | RTC        | 0x1E781000  | 0x18   | 13      | Real-time clock |
 | PWM        | 0x1E610000  | 0x1000 | 44      | PWM/Fan tachometer |
 | PECI       | 0x1E78B000  | 0x1000 | 38      | Platform Environment Control Interface |
+| HACE       | 0x1E6D0000  | 0x1000 | 4       | Hash and Crypto Engine (SHA/MD5) |
 | XDMA       | 0x1E6E7000  | 0x1000 | 6       | DMA engine |
 | DRAM       | 0x80000000  | 1 GiB  | —       | DDR4 |
 | GIC        | 0x40461000  | 0x1000 | —       | ARM GICv2 |
