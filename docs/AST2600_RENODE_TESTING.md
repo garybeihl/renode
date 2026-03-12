@@ -22,6 +22,10 @@ The platform models an Aspeed AST2600 BMC SoC:
 | UART5      | 0x1E784000  | —      | 63      | NS16550 serial console |
 | WDT1-4     | 0x1E785000+ | 0x40   | 24      | 4 watchdog timers |
 | I2C        | 0x1E78A000  | 0x1000 | 110-125 | 16-bus I2C controller |
+| RTC        | 0x1E781000  | 0x18   | 13      | Real-time clock |
+| PWM        | 0x1E610000  | 0x1000 | 44      | PWM/Fan tachometer |
+| PECI       | 0x1E78B000  | 0x1000 | 38      | Platform Environment Control Interface |
+| XDMA       | 0x1E6E7000  | 0x1000 | 6       | DMA engine |
 | DRAM       | 0x80000000  | 1 GiB  | —       | DDR4 |
 | GIC        | 0x40461000  | 0x1000 | —       | ARM GICv2 |
 | GenTimer   | @ cpu0/cpu1 | —      | PPI     | ARM Generic Timer (1.125 GHz) |
