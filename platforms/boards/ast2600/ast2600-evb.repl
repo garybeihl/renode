@@ -54,6 +54,16 @@ flash: Memory.MappedMemory @ sysbus 0x20000000
 
 sdmc: Miscellaneous.Aspeed_SDMC @ sysbus 0x1E6E0000
 
+sbc: Miscellaneous.Aspeed_SBC @ sysbus 0x1E6F2000
+
+gpio: GPIOPort.Aspeed_GPIO @ sysbus 0x1E780000
+    numberOfSets: 7
+    IRQ -> gic@40
+
+gpio_1_8v: GPIOPort.Aspeed_GPIO @ sysbus 0x1E780800
+    numberOfSets: 2
+    IRQ -> gic@11
+
 timer: Timers.Aspeed_Timer @ sysbus 0x1E782000
     [0-7] -> gic@[16-23]
 
@@ -68,3 +78,7 @@ wdt4: Timers.Aspeed_WDT @ sysbus 0x1E7850C0
 uart5: UART.NS16550 @ sysbus 0x1E784000
     wideRegisters: false
     IRQ -> gic@63
+
+
+i2c: I2C.Aspeed_I2C @ sysbus 0x1E78A000
+    [0-15] -> gic@[110-125]
