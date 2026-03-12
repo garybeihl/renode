@@ -97,3 +97,6 @@ rtc: Miscellaneous.Aspeed_RTC @ sysbus 0x1E781000
 
 hace: Miscellaneous.Aspeed_HACE @ sysbus 0x1E6D0000
     IRQ -> gic@4
+
+espi: Miscellaneous.Aspeed_eSPI @ sysbus 0x1E6EE000
+    IRQ -> gic@42
