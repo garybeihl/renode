@@ -94,3 +94,6 @@ xdma: Miscellaneous.Aspeed_XDMA @ sysbus 0x1E6E7000
 
 rtc: Miscellaneous.Aspeed_RTC @ sysbus 0x1E781000
     IRQ -> gic@13
+
+hace: Miscellaneous.Aspeed_HACE @ sysbus 0x1E6D0000
+    IRQ -> gic@4
