@@ -26,3 +26,9 @@ packages
 perf.data
 perf.script
 .venv
+*.log
+*.save
+*.xml
+*.elf
+*.o
+tests/tests/

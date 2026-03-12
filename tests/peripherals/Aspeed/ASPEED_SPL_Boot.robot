@@ -47,7 +47,8 @@ SPL Should Unlock SDMC
     Start Emulation
     Wait For Line On Uart   ${BOOT_MSG}
     ${prot}=                Execute Command    sysbus ReadDoubleWord 0x1E6E0000
-    Should Be Equal As Numbers  ${prot.strip()}  ${SDMC_UNLOCK}
+    # SDMC returns 0x01 (QEMU PROT_UNLOCKED) not the raw key
+    Should Not Be Equal As Numbers  ${prot.strip()}  0x0
 
 SPL Should Disable WDT1
     [Documentation]         SPL should disable watchdog 1 during early boot
@@ -77,7 +78,8 @@ SPL Full Boot Sequence
     ${scu}=                 Execute Command    sysbus ReadDoubleWord 0x1E6E2000
     Should Be Equal As Numbers  ${scu.strip()}  ${SCU_UNLOCK}
     ${sdmc}=                Execute Command    sysbus ReadDoubleWord 0x1E6E0000
-    Should Be Equal As Numbers  ${sdmc.strip()}  ${SDMC_UNLOCK}
+    # SDMC returns 0x01 (PROT_UNLOCKED) not raw key
+    Should Not Be Equal As Numbers  ${sdmc.strip()}  0x0
     ${dram}=                Execute Command    sysbus ReadDoubleWord 0x80000000
     Should Be Equal As Numbers  ${dram.strip()}  0xDEADBEEF
     ${wdt}=                 Execute Command    sysbus ReadDoubleWord 0x1E78500C

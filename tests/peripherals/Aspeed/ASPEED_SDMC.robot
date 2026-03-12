@@ -53,7 +53,8 @@ Should Unlock SDMC
     Create AST2600 Machine
     Write SDMC Register     ${PROT_KEY}  ${UNLOCK_KEY}
     ${val}=                 Read SDMC Register  ${PROT_KEY}
-    Should Be Equal As Numbers  ${val}  ${UNLOCK_KEY}
+    # QEMU returns 0x01 for unlocked state, not the raw key value
+    Should Be Equal As Numbers  ${val}  0x1
 
 PHY PLL Lock Should Be Set
     [Documentation]         Status1 bit 4 (PHY PLL lock) should be set
