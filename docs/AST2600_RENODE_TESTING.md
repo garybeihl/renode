@@ -28,6 +28,12 @@ The platform models an Aspeed AST2600 BMC SoC:
 | HACE       | 0x1E6D0000  | 0x1000 | 4       | Hash and Crypto Engine (SHA/MD5) |
 | XDMA       | 0x1E6E7000  | 0x1000 | 6       | DMA engine |
 | eSPI       | 0x1E6EE000  | 0x1000 | 42      | eSPI slave controller |
+| ADC        | 0x1E6E9000  | 0x1000 | 46      | Dual-engine 16-channel ADC |
+| LPC/KCS    | 0x1E789000  | 0x1000 | 35      | LPC host interface with 4 KCS channels |
+| ETH1       | 0x1E660000  | 0x1000 | 2       | FTGMAC100 Ethernet MAC |
+| ETH2       | 0x1E680000  | 0x1000 | 3       | FTGMAC100 Ethernet MAC |
+| ETH3       | 0x1E670000  | 0x1000 | 32      | FTGMAC100 Ethernet MAC |
+| ETH4       | 0x1E690000  | 0x1000 | 33      | FTGMAC100 Ethernet MAC |
 | DRAM       | 0x80000000  | 1 GiB  | —       | DDR4 |
 | GIC        | 0x40461000  | 0x1000 | —       | ARM GICv2 |
 | GenTimer   | @ cpu0/cpu1 | —      | PPI     | ARM Generic Timer (1.125 GHz) |
@@ -234,7 +240,7 @@ echo "All firmware built successfully"
 
 ## Running Tests
 
-### All Tests (79 tests)
+### All Tests (178 tests)
 
 ```bash
 cd ~/renode-ast2600
@@ -254,6 +260,10 @@ python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED
 python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED_SBC.robot
 python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED_GPIO.robot
 python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED_I2C.robot
+
+python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED_ADC.robot
+python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED_LPC.robot
+python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED_FTGMAC100.robot
 
 # Integration tests (require firmware)
 python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED_SPL_Boot.robot
@@ -280,7 +290,10 @@ python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED
 | ASPEED_RTC     | 8     | No                | Counter enable, date/time, lock, alarm W1C |
 | ASPEED_XDMA    | 6     | No                | IRQ status W1C, control mask, command queue |
 | ASPEED_ESPI    | 20    | No                | Reset values, W1C, capabilities, TX completion, SYSEVT, DMA, MMBI |
-| **Total**      | **133**|                   |                |
+| ASPEED_ADC     | 15    | No                | Dual engine, channel data, thresholds, W1C |
+| ASPEED_LPC     | 15    | No                | KCS channels, IBF/OBF, IRQ, dual-gate |
+| ASPEED_FTGMAC100| 15   | No                | PHY MII, ISR W1C, MACCR SW_RST, link up |
+| **Total**      | **178**|                   |                |
 
 ## Interactive Boot
 
@@ -367,6 +380,9 @@ src/Infrastructure/src/Emulator/Peripherals/Peripherals/
     Miscellaneous/Aspeed_SCU.cs       # System Configuration Unit
     Miscellaneous/Aspeed_SDMC.cs      # DRAM Memory Controller
     Miscellaneous/Aspeed_SBC.cs       # Secure Boot Controller
+    Miscellaneous/Aspeed_ADC.cs       # Dual-engine ADC
+    Miscellaneous/Aspeed_LPC.cs       # LPC/KCS host interface
+    Miscellaneous/Aspeed_FTGMAC100.cs # FTGMAC100 Ethernet MAC stub
     GPIOPort/Aspeed_GPIO.cs           # GPIO controller
     I2C/Aspeed_I2C.cs                 # I2C 16-bus controller
     Timers/Aspeed_Timer.cs            # 8-channel timer
@@ -385,6 +401,9 @@ tests/peripherals/Aspeed/
     ASPEED_SBC.robot                  # Secure Boot Controller tests
     ASPEED_GPIO.robot                 # GPIO tests
     ASPEED_I2C.robot                  # I2C tests
+    ASPEED_ADC.robot                  # ADC register tests
+    ASPEED_LPC.robot                  # LPC/KCS register tests
+    ASPEED_FTGMAC100.robot            # Ethernet MAC register tests
     ASPEED_SPL_Boot.robot             # SPL stub integration tests
     ASPEED_UBoot.robot                # Full u-boot boot tests
     ast2600-spl-boot.resc             # SPL stub boot script
