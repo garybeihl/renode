@@ -27,6 +27,7 @@ The platform models an Aspeed AST2600 BMC SoC:
 | PECI       | 0x1E78B000  | 0x1000 | 38      | Platform Environment Control Interface |
 | HACE       | 0x1E6D0000  | 0x1000 | 4       | Hash and Crypto Engine (SHA/MD5) |
 | XDMA       | 0x1E6E7000  | 0x1000 | 6       | DMA engine |
+| eSPI       | 0x1E6EE000  | 0x1000 | 42      | eSPI slave controller |
 | DRAM       | 0x80000000  | 1 GiB  | —       | DDR4 |
 | GIC        | 0x40461000  | 0x1000 | —       | ARM GICv2 |
 | GenTimer   | @ cpu0/cpu1 | —      | PPI     | ARM Generic Timer (1.125 GHz) |
@@ -273,7 +274,13 @@ python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED
 | ASPEED_I2C     | 11    | No                | Bus R/W, AC timing mask, NAK, W1C, 16 buses |
 | ASPEED_SPL_Boot| 7     | SPL stub          | End-to-end: UART, WFI, SCU/SDMC, WDT, DRAM |
 | ASPEED_UBoot   | 3     | flash.bin         | Full u-boot: SPL→FIT→DRAM→autoboot prompt |
-| **Total**      | **79**|                   |                |
+| ASPEED_HACE    | 8     | No                | Register reset, address masking, W1C, key buffer |
+| ASPEED_PWM     | 5     | No                | General control, duty cycle, defaults, write/read |
+| ASPEED_PECI    | 7     | No                | Fire command, auto-complete, IRQ W1C, data buffer |
+| ASPEED_RTC     | 8     | No                | Counter enable, date/time, lock, alarm W1C |
+| ASPEED_XDMA    | 6     | No                | IRQ status W1C, control mask, command queue |
+| ASPEED_ESPI    | 20    | No                | Reset values, W1C, capabilities, TX completion, SYSEVT, DMA, MMBI |
+| **Total**      | **133**|                   |                |
 
 ## Interactive Boot
 
