@@ -103,3 +103,6 @@ espi: Miscellaneous.Aspeed_eSPI @ sysbus 0x1E6EE000
 
 adc: Miscellaneous.Aspeed_ADC @ sysbus 0x1E6E9000
     IRQ -> gic@46
+
+lpc: Miscellaneous.Aspeed_LPC @ sysbus 0x1E789000
+    IRQ -> gic@35
