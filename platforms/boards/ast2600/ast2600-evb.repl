@@ -82,3 +82,15 @@ uart5: UART.NS16550 @ sysbus 0x1E784000
 
 i2c: I2C.Aspeed_I2C @ sysbus 0x1E78A000
     [0-15] -> gic@[110-125]
+
+pwm: Miscellaneous.Aspeed_PWM @ sysbus 0x1E610000
+    IRQ -> gic@44
+
+peci: Miscellaneous.Aspeed_PECI @ sysbus 0x1E78B000
+    IRQ -> gic@38
+
+xdma: Miscellaneous.Aspeed_XDMA @ sysbus 0x1E6E7000
+    IRQ -> gic@6
+
+rtc: Miscellaneous.Aspeed_RTC @ sysbus 0x1E781000
+    IRQ -> gic@13
