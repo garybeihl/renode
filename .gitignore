@@ -39,3 +39,4 @@ tests/peripherals/Aspeed/firmware/u-boot-spl.bin
 tests/peripherals/Aspeed/firmware/u-boot.bin
 scripts/uboot-debug.resc
 scripts/uboot-diag*.resc
+tests/peripherals/Aspeed/firmware/

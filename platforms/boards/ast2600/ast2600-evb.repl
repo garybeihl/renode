@@ -18,13 +18,13 @@ cpu1: CPU.ARMv7A @ sysbus
         IsHalted true
 
 gentimer0: Timers.ARM_GenericTimer @ cpu0
-    frequency: 1125000000
+    frequency: 1200000000
     EL1PhysicalTimerIRQ -> gic#0@30
     EL1VirtualTimerIRQ -> gic#0@27
     NonSecureEL2PhysicalTimerIRQ -> gic#0@26
 
 gentimer1: Timers.ARM_GenericTimer @ cpu1
-    frequency: 1125000000
+    frequency: 1200000000
     EL1PhysicalTimerIRQ -> gic#1@30
     EL1VirtualTimerIRQ -> gic#1@27
     NonSecureEL2PhysicalTimerIRQ -> gic#1@26
@@ -76,7 +76,7 @@ wdt3: Timers.Aspeed_WDT @ sysbus 0x1E785080
 wdt4: Timers.Aspeed_WDT @ sysbus 0x1E7850C0
 
 uart5: UART.NS16550 @ sysbus 0x1E784000
-    wideRegisters: false
+    wideRegisters: true
     IRQ -> gic@63
 
 
