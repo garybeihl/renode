@@ -1,0 +1,99 @@
+mach create "ast2600"
+machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x20000000
+sysbus SilenceRange <0x1E630000 0xC4>
+sysbus SilenceRange <0x30000000 0x10000000>
+sysbus SilenceRange <0x1E631000 0xC4>
+sysbus SilenceRange <0x50000000 0x10000000>
+sysbus SilenceRange <0x1E650000 0x20>
+sysbus SilenceRange <0x1E740000 0x10000>
+sysbus SilenceRange <0x1E750000 0x10000>
+sysbus SilenceRange <0x1E6A0000 0x1000>
+sysbus SilenceRange <0x1E6A3000 0x1000>
+sysbus SilenceRange <0x1E700000 0x1000>
+
+logLevel 3
+uart5 CreateFileBackend @/tmp/openbmc-debug-undef.txt true
+
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+
+uart5 WriteLine "setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8 nosmp maxcpus=1 panic=-1"
+emulation RunFor "1"
+uart5 WriteLine "boot"
+
+# Run 30s to get past SLUB, then sample the PC rapidly
+emulation RunFor "30"
+
+# Sample PC 10 times with 0.001s intervals to find the loop
+cpu0 PC
+emulation RunFor "0.001"
+cpu0 PC
+emulation RunFor "0.001"
+cpu0 PC
+emulation RunFor "0.001"
+cpu0 PC
+emulation RunFor "0.001"
+cpu0 PC
+emulation RunFor "0.001"
+cpu0 PC
+emulation RunFor "0.001"
+cpu0 PC
+emulation RunFor "0.001"
+cpu0 PC
+emulation RunFor "0.001"
+cpu0 PC
+emulation RunFor "0.001"
+cpu0 PC
+
+# Read the undefined instruction handler's return address
+# __und_svc is at 0x80100c40, the saved PC on stack tells us what instruction caused the fault
+# Read the SPSR from und stack
+sysbus ReadDoubleWord 0x80100c40
+
+# Sample a few more PCs with slightly different intervals
+emulation RunFor "0.01"
+cpu0 PC
+emulation RunFor "0.1"
+cpu0 PC
+
+quit
