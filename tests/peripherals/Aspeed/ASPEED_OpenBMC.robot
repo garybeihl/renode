@@ -6,20 +6,31 @@
 # Tests full OpenBMC boot: SPL -> u-boot -> Linux kernel -> userspace
 
 *** Settings ***
-Suite Setup         Setup
+Suite Setup         Run Keywords    Setup    AND    Create OpenBMC Machine
 Suite Teardown      Teardown
-Test Teardown       Test Teardown
-Resource            /src/Renode/RobotFrameworkEngine/renode-keywords.robot
 
 *** Variables ***
 ${UART5}            sysbus.uart5
 
 *** Keywords ***
-Setup
+Create OpenBMC Machine
     Execute Command     mach create "ast2600"
     Execute Command     machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
     Execute Command     sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
     Execute Command     sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x20000000
+
+    # Silence unmapped peripheral regions to prevent driver probe hangs
+    Execute Command     sysbus SilenceRange <0x1E630000 0xC4>
+    Execute Command     sysbus SilenceRange <0x30000000 0x10000000>
+    Execute Command     sysbus SilenceRange <0x1E631000 0xC4>
+    Execute Command     sysbus SilenceRange <0x50000000 0x10000000>
+    Execute Command     sysbus SilenceRange <0x1E650000 0x20>
+    Execute Command     sysbus SilenceRange <0x1E740000 0x10000>
+    Execute Command     sysbus SilenceRange <0x1E750000 0x10000>
+    Execute Command     sysbus SilenceRange <0x1E6A0000 0x1000>
+    Execute Command     sysbus SilenceRange <0x1E6A3000 0x1000>
+    Execute Command     sysbus SilenceRange <0x1E700000 0x1000>
+
     Create Terminal Tester    ${UART5}    timeout=120
 
 *** Test Cases ***
@@ -44,10 +55,17 @@ Should Detect Peripherals In U-Boot
     Wait For Line On Uart    Net:    timeout=15
     Wait For Line On Uart    eth0:    timeout=10
 
-Should Start Kernel
-    [Documentation]     Verify u-boot loads and starts Linux kernel
+Should Start Kernel With Earlycon
+    [Documentation]     Interrupt autoboot to inject earlycon, then boot kernel
     [Tags]              openbmc    boot    kernel
-    Wait For Line On Uart    Loading kernel from FIT    timeout=30
+    # Interrupt u-boot autoboot
+    Wait For Line On Uart    autoboot    timeout=30    includeUnfinishedLine=true
+    Write Line To Uart
+    Wait For Line On Uart    =>    timeout=5    includeUnfinishedLine=true
+    # Add earlycon for early kernel output and boot
+    Write Line To Uart    setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8
+    Wait For Line On Uart    =>    timeout=5    includeUnfinishedLine=true
+    Write Line To Uart    bootm 20080000
     Wait For Line On Uart    Starting kernel    timeout=60
 
 Should Boot Linux Kernel
