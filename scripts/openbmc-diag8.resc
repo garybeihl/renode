@@ -1,0 +1,125 @@
+mach create "ast2600"
+machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x20000000
+sysbus SilenceRange <0x1E630000 0xC4>
+sysbus SilenceRange <0x30000000 0x10000000>
+sysbus SilenceRange <0x1E631000 0xC4>
+sysbus SilenceRange <0x50000000 0x10000000>
+sysbus SilenceRange <0x1E650000 0x20>
+sysbus SilenceRange <0x1E740000 0x10000>
+sysbus SilenceRange <0x1E750000 0x10000>
+sysbus SilenceRange <0x1E6A0000 0x1000>
+sysbus SilenceRange <0x1E6A3000 0x1000>
+sysbus SilenceRange <0x1E700000 0x1000>
+
+# Log level WARNING to see our diagnostics
+logLevel 2
+uart5 CreateFileBackend @/tmp/openbmc-diag8.txt true
+
+# Autoboot interrupt
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+
+uart5 WriteLine "setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8 nosmp maxcpus=1 panic=-1"
+emulation RunFor "1"
+uart5 WriteLine "boot"
+
+# Sample kernel .text at 0x80a0f274 (search_extable) at intervals
+# Expected value: 0xe52de004 (push {lr})
+emulation RunFor "2"
+logLevel -1 sysbus
+log "=== SAMPLE t=2s ==="
+sysbus ReadDoubleWord 0x80a0f274
+sysbus ReadDoubleWord 0x80a0f278
+sysbus ReadDoubleWord 0x80d247ac
+
+emulation RunFor "3"
+log "=== SAMPLE t=5s ==="
+sysbus ReadDoubleWord 0x80a0f274
+sysbus ReadDoubleWord 0x80a0f278
+sysbus ReadDoubleWord 0x80d247ac
+
+emulation RunFor "3"
+log "=== SAMPLE t=8s ==="
+sysbus ReadDoubleWord 0x80a0f274
+sysbus ReadDoubleWord 0x80a0f278
+sysbus ReadDoubleWord 0x80d247ac
+
+emulation RunFor "2"
+log "=== SAMPLE t=10s ==="
+sysbus ReadDoubleWord 0x80a0f274
+sysbus ReadDoubleWord 0x80a0f278
+sysbus ReadDoubleWord 0x80d247ac
+
+emulation RunFor "2"
+log "=== SAMPLE t=12s ==="
+sysbus ReadDoubleWord 0x80a0f274
+sysbus ReadDoubleWord 0x80a0f278
+sysbus ReadDoubleWord 0x80d247ac
+
+emulation RunFor "2"
+log "=== SAMPLE t=14s ==="
+sysbus ReadDoubleWord 0x80a0f274
+sysbus ReadDoubleWord 0x80a0f278
+sysbus ReadDoubleWord 0x80d247ac
+
+emulation RunFor "2"
+log "=== SAMPLE t=16s ==="
+sysbus ReadDoubleWord 0x80a0f274
+sysbus ReadDoubleWord 0x80a0f278
+sysbus ReadDoubleWord 0x80d247ac
+
+emulation RunFor "2"
+log "=== SAMPLE t=18s ==="
+sysbus ReadDoubleWord 0x80a0f274
+sysbus ReadDoubleWord 0x80a0f278
+sysbus ReadDoubleWord 0x80d247ac
+
+emulation RunFor "2"
+log "=== SAMPLE t=20s ==="
+sysbus ReadDoubleWord 0x80a0f274
+sysbus ReadDoubleWord 0x80a0f278
+sysbus ReadDoubleWord 0x80d247ac
+
+emulation RunFor "5"
+
+quit

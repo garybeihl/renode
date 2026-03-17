@@ -1,0 +1,56 @@
+i @scripts/openbmc-boot.resc
+logLevel 3
+
+# Spam CR to interrupt U-Boot autoboot
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+
+showAnalyzer uart5
+
+# Set earlycon bootargs and boot
+uart5 WriteLine "setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8"
+emulation RunFor "1"
+uart5 WriteLine "boot"
+
+# Run for 120 virtual seconds to let kernel boot
+emulation RunFor "120"
+
+quit

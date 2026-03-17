@@ -1,0 +1,115 @@
+mach create "ast2600"
+machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x20000000
+sysbus SilenceRange <0x1E630000 0xC4>
+sysbus SilenceRange <0x30000000 0x10000000>
+sysbus SilenceRange <0x1E631000 0xC4>
+sysbus SilenceRange <0x50000000 0x10000000>
+sysbus SilenceRange <0x1E650000 0x20>
+sysbus SilenceRange <0x1E740000 0x10000>
+sysbus SilenceRange <0x1E750000 0x10000>
+sysbus SilenceRange <0x1E6A0000 0x1000>
+sysbus SilenceRange <0x1E6A3000 0x1000>
+sysbus SilenceRange <0x1E700000 0x1000>
+
+logLevel 3
+uart5 CreateFileBackend @/tmp/openbmc-timing-check.txt true
+
+# Expected value at __und_svc (0x80100c40): 0xE24DD050 (sub sp, sp, #80)
+# Check before boot
+sysbus ReadDoubleWord 0x80100c40
+
+# Autoboot interrupt
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+
+uart5 WriteLine "setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8 nosmp maxcpus=1 panic=-1"
+emulation RunFor "1"
+
+# Check right before boot command (after 11s of U-Boot)
+sysbus ReadDoubleWord 0x80100c40
+
+uart5 WriteLine "boot"
+
+# U-Boot loads kernel at 0x80001000. Check at various points during load.
+emulation RunFor "2"
+sysbus ReadDoubleWord 0x80100c40
+
+emulation RunFor "2"
+sysbus ReadDoubleWord 0x80100c40
+
+emulation RunFor "2"
+sysbus ReadDoubleWord 0x80100c40
+
+# By ~17s, kernel should be loaded and starting to execute
+emulation RunFor "2"
+sysbus ReadDoubleWord 0x80100c40
+
+emulation RunFor "1"
+sysbus ReadDoubleWord 0x80100c40
+
+emulation RunFor "1"
+sysbus ReadDoubleWord 0x80100c40
+
+emulation RunFor "1"
+sysbus ReadDoubleWord 0x80100c40
+
+emulation RunFor "1"
+sysbus ReadDoubleWord 0x80100c40
+
+emulation RunFor "1"
+sysbus ReadDoubleWord 0x80100c40
+
+emulation RunFor "1"
+sysbus ReadDoubleWord 0x80100c40
+
+emulation RunFor "1"
+sysbus ReadDoubleWord 0x80100c40
+
+emulation RunFor "1"
+sysbus ReadDoubleWord 0x80100c40
+
+# 28s total - should have hit the corruption by now
+emulation RunFor "2"
+sysbus ReadDoubleWord 0x80100c40
+
+quit
