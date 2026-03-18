@@ -11,15 +11,16 @@ The platform models an Aspeed AST2600 BMC SoC:
 |------------|-------------|--------|---------|-------------|
 | Boot ROM   | 0x00000000  | 32MB   | —       | SPI flash alias at reset |
 | SRAM       | 0x10000000  | 90KB   | —       | Internal SRAM |
-| FMC        | 0x1E620000  | 0x200  | 39      | SPI flash controller with DMA |
-| Flash      | 0x20000000  | 128MB  | —       | Memory-mapped flash window |
+| FMC regs   | 0x1E620000  | 0x200  | 39      | SPI flash controller (registers) |
+| FMC flash  | 0x20000000  | 64MB   | —       | FMC memory-mapped flash window |
+| Flash mem  | 0x60000000  | 64MB   | —       | Flash backing store (for sysbus LoadBinary) |
 | SDMC       | 0x1E6E0000  | 0x1000 | —       | DRAM memory controller |
 | SCU        | 0x1E6E2000  | 0x1000 | 12      | System Configuration Unit |
 | SBC        | 0x1E6F2000  | 0x1000 | —       | Secure Boot Controller |
 | GPIO 3.3V  | 0x1E780000  | 0x800  | 40      | GPIO (7 sets, 208 pins) |
 | GPIO 1.8V  | 0x1E780800  | 0x800  | 11      | GPIO (2 sets, 36 pins) |
 | Timer      | 0x1E782000  | 0x100  | 16-23   | 8-channel timer |
-| UART5      | 0x1E784000  | —      | 63      | NS16550 serial console |
+| UART5      | 0x1E784000  | —      | 8       | NS16550 serial console |
 | WDT1-4     | 0x1E785000+ | 0x40   | 24      | 4 watchdog timers |
 | I2C        | 0x1E78A000  | 0x1000 | 110-125 | 16-bus I2C controller |
 | RTC        | 0x1E781000  | 0x18   | 13      | Real-time clock |
@@ -36,7 +37,19 @@ The platform models an Aspeed AST2600 BMC SoC:
 | ETH4       | 0x1E690000  | 0x1000 | 33      | FTGMAC100 Ethernet MAC |
 | DRAM       | 0x80000000  | 1 GiB  | —       | DDR4 |
 | GIC        | 0x40461000  | 0x1000 | —       | ARM GICv2 |
-| GenTimer   | @ cpu0/cpu1 | —      | PPI     | ARM Generic Timer (1.125 GHz) |
+| GenTimer   | @ cpu0/cpu1 | —      | PPI     | ARM Generic Timer (1.2 GHz) |
+
+The FMC uses `BusMultiRegistration` to register at two bus regions: "registers"
+(0x1E620000) for control/DMA and "flash" (0x20000000) for the memory-mapped
+flash window. In normal mode, flash window reads return data from the backing
+`MappedMemory`. In user mode (CE0 Control type=3), reads/writes send SPI bytes
+to an internal `GenericSpiFlash` (Winbond W25Q512JV, JEDEC ID 0xEF 0x40 0x20),
+enabling the Linux `spi-aspeed-smc` driver to identify the flash chip.
+
+The flash backing store at 0x60000000 is the same `MappedMemory` object the FMC
+references internally. It is registered on the sysbus solely so that
+`sysbus LoadBinary` can populate it quickly at boot. Address 0x60000000 is unused
+in the real AST2600 memory map.
 
 ## Prerequisites
 
@@ -240,7 +253,7 @@ echo "All firmware built successfully"
 
 ## Running Tests
 
-### All Tests (178 tests)
+### All Tests (185 tests)
 
 ```bash
 cd ~/renode-ast2600
@@ -268,6 +281,7 @@ python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED
 # Integration tests (require firmware)
 python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED_SPL_Boot.robot
 python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED_UBoot.robot
+python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED_OpenBMC.robot
 ```
 
 ### Test Suite Summary
@@ -293,7 +307,8 @@ python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED
 | ASPEED_ADC     | 15    | No                | Dual engine, channel data, thresholds, W1C |
 | ASPEED_LPC     | 15    | No                | KCS channels, IBF/OBF, IRQ, dual-gate |
 | ASPEED_FTGMAC100| 15   | No                | PHY MII, ISR W1C, MACCR SW_RST, link up |
-| **Total**      | **178**|                   |                |
+| ASPEED_OpenBMC | 7     | OpenBMC MTD image | Full Linux boot: SPL → kernel → systemd |
+| **Total**      | **185**|                   |                |
 
 ## Interactive Boot
 
@@ -328,6 +343,32 @@ WDT:   Started watchdog@1e785000 with servicing every 1000ms (60s timeout)
 Hit any key to stop autoboot: 0
 =>
 ```
+
+### OpenBMC Linux Boot
+
+The full OpenBMC boot requires a Yocto-built MTD image (not the u-boot
+`flash.bin` above). The boot script loads firmware into three locations:
+
+1. **0x0** (bootrom) — u-boot SPL executes from here at reset
+2. **0x60000000** (flash backing) — populates flash data for kernel MTD driver
+3. **0x88000000** (DRAM) — pre-loaded FIT image for fast `bootm` (bypasses
+   SHA-256 hash verification issue)
+
+```bash
+dotnet output/bin/Release/Renode.dll --disable-xwt --plain \
+    --execute "include @scripts/openbmc-diag9.resc"
+```
+
+The boot sequence takes ~180s of emulated time:
+- u-boot SPL → FIT → u-boot prompt (interrupted by autoboot)
+- `bootm 88100000` → Linux kernel with `nosmp maxcpus=1`
+- initramfs → squashfs rootfs (MTD) → jffs2 overlayfs → switch_root
+- systemd → OpenBMC services (bmcweb, pldmd, phosphor-inventory-manager)
+- Serial getty on ttyS4 → login prompt
+
+Known issues during Linux boot:
+- eth0 timeout (90s, no network emulation)
+- jffs2 rwfs corruption warnings (harmless, flash image artifact)
 
 ### SPL Stub Boot (Lightweight)
 
@@ -368,6 +409,29 @@ Full u-boot starts at 0x80000000
     │
     ▼
 => (u-boot command prompt)
+    │  bootm loads FIT from DRAM (kernel + DTB + initramfs)
+    │
+    ▼
+Linux kernel (nosmp, single CPU)
+    │  Mounts devtmpfs, sysfs, proc
+    │  spi-aspeed-smc driver: JEDEC ID → W25Q512JV recognized
+    │  MTD partitions created from device tree
+    │
+    ▼
+initramfs /init script
+    │  Mounts squashfs rootfs (MTD rofs partition)
+    │  Mounts jffs2 read-write fs (MTD rwfs partition)
+    │  Creates overlayfs (rofs + rwfs)
+    │  switch_root to /root with systemd
+    │
+    ▼
+systemd (PID 1)
+    │  Starts OpenBMC services: bmcweb, pldmd,
+    │  phosphor-inventory-manager, phosphor-network-manager
+    │  Serial getty on ttyS4
+    │
+    ▼
+Login prompt
 ```
 
 ## Repository Structure
@@ -383,11 +447,17 @@ src/Infrastructure/src/Emulator/Peripherals/Peripherals/
     Miscellaneous/Aspeed_ADC.cs       # Dual-engine ADC
     Miscellaneous/Aspeed_LPC.cs       # LPC/KCS host interface
     Miscellaneous/Aspeed_FTGMAC100.cs # FTGMAC100 Ethernet MAC stub
+    Miscellaneous/Aspeed_HACE.cs      # Hash and Crypto Engine
+    Miscellaneous/Aspeed_PWM.cs       # PWM/Fan tachometer
+    Miscellaneous/Aspeed_PECI.cs      # Platform Environment Control Interface
+    Miscellaneous/Aspeed_XDMA.cs      # DMA engine
+    Miscellaneous/Aspeed_RTC.cs       # Real-time clock
+    Miscellaneous/Aspeed_eSPI.cs      # eSPI slave controller
     GPIOPort/Aspeed_GPIO.cs           # GPIO controller
     I2C/Aspeed_I2C.cs                 # I2C 16-bus controller
     Timers/Aspeed_Timer.cs            # 8-channel timer
     Timers/Aspeed_WDT.cs              # Watchdog timer
-    SPI/Aspeed_FMC.cs                 # Flash Memory Controller with DMA
+    SPI/Aspeed_FMC.cs                 # Flash Memory Controller with DMA + SPI user mode
 
 scripts/
     uboot-full.resc                   # Full u-boot interactive boot script
@@ -406,6 +476,7 @@ tests/peripherals/Aspeed/
     ASPEED_FTGMAC100.robot            # Ethernet MAC register tests
     ASPEED_SPL_Boot.robot             # SPL stub integration tests
     ASPEED_UBoot.robot                # Full u-boot boot tests
+    ASPEED_OpenBMC.robot              # OpenBMC Linux boot test
     ast2600-spl-boot.resc             # SPL stub boot script
     firmware/
         ast2600_spl_stub.S            # SPL stub source (assembly)
@@ -442,6 +513,24 @@ SPL polls until the key reads as 0 after locking.
 Set log level before starting: `logLevel 3` (errors only).
 Use `uart5 CreateFileBackend @/tmp/output.txt true` to capture to file.
 
+### Userspace output missing (only kernel messages visible)
+Verify UART5 IRQ is `gic@8` (GIC SPI 8) in the `.repl` file. An incorrect
+IRQ mapping breaks interrupt-driven TX: printk works (polled mode) but
+userspace tty output (systemd, login prompt) requires THRE interrupts.
+
 ### Timer-related delays seem too long
-Verify the ARM Generic Timer frequency is 1,125,000,000 Hz in the `.repl` file.
+Verify the ARM Generic Timer frequency is 1,200,000,000 Hz in the `.repl` file.
 u-boot calculates delays based on CNTFRQ — a mismatch causes proportional slowdown.
+
+### SHA-256 hash verification fails during bootm
+Earlier versions had hash mismatches because the flash window at 0x20000000
+was a standalone `MappedMemory` that didn't properly handle FMC controller
+state. With the FMC `BusMultiRegistration` rework (flash region + user mode),
+booting from the DRAM pre-loaded FIT (`bootm 88100000`) passes all SHA-256
+checks. If verification still fails, ensure the firmware is loaded at all
+three addresses (0x0, 0x60000000, 0x88000000).
+
+### Linux boot hangs at "Starting kernel"
+Ensure `nosmp maxcpus=1` is in bootargs. The second CPU (cpu1) is halted but
+its dirty address list can grow unbounded, causing OOM. The Machine.cs fix
+skips halted CPUs during dirty address broadcast.

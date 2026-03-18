@@ -1,5 +1,5 @@
 *** Comments ***
-# Copyright (c) Microsoft Corporation.
+# Copyright (c) 2026 Microsoft
 # SPDX-License-Identifier: Apache-2.0
 #
 # AST2600 OpenBMC Boot Tests
