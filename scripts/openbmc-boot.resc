@@ -7,7 +7,7 @@ machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
 
 # Load OpenBMC MTD image at 0x0 (boot ROM / flash alias) and flash window
 sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
-sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x20000000
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x60000000
 
 # Silence unmapped peripheral regions that Linux probes but are not modeled.
 # Without these, drivers may spin polling registers that return 0.

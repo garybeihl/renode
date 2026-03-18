@@ -48,11 +48,21 @@ dram: Memory.MappedMemory @ sysbus 0x80000000
 scu: Miscellaneous.Aspeed_SCU @ sysbus 0x1E6E2000
 
 
-fmc: SPI.Aspeed_FMC @ sysbus 0x1E620000
-    [0] -> gic@[39]
+// Flash backing store: registered at 0x60000000 (unused region in AST2600
+// memory map) purely for fast firmware loading via sysbus LoadBinary.
+// The FMC accesses this same MappedMemory internally through its
+// flashMemory property for the flash window at 0x20000000.
+// NOTE: 0x60000000 is safe — well below DRAM (0x80000000) and above
+// the SPI2 region (0x50000000). U-boot does not probe this range.
+flashMem: Memory.MappedMemory @ sysbus 0x60000000
+    size: 0x4000000
 
-flash: Memory.MappedMemory @ sysbus 0x20000000
-    size: 0x8000000
+fmc: SPI.Aspeed_FMC @ {
+        sysbus new Bus.BusMultiRegistration { address: 0x1E620000; size: 0x200; region: "registers" };
+        sysbus new Bus.BusMultiRegistration { address: 0x20000000; size: 0x4000000; region: "flash" }
+    }
+    flashMemory: flashMem
+    [0] -> gic@[39]
 
 sdmc: Miscellaneous.Aspeed_SDMC @ sysbus 0x1E6E0000
 
@@ -79,7 +89,7 @@ wdt4: Timers.Aspeed_WDT @ sysbus 0x1E7850C0
 
 uart5: UART.NS16550 @ sysbus 0x1E784000
     wideRegisters: true
-    IRQ -> gic@63
+    IRQ -> gic@8
 
 
 i2c: I2C.Aspeed_I2C @ sysbus 0x1E78A000

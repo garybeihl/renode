@@ -7,7 +7,7 @@ ${SDMC_UNLOCK}      0xFC600309
 Create And Boot AST2600
     Execute Command         mach create "ast2600"
     Execute Command         machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
-    Execute Command         sysbus LoadBinary @tests/peripherals/Aspeed/firmware/ast2600_spl_stub.bin 0x20000000
+    Execute Command         sysbus LoadBinary @tests/peripherals/Aspeed/firmware/ast2600_spl_stub.bin 0x60000000
     Execute Command         sysbus LoadBinary @tests/peripherals/Aspeed/firmware/ast2600_spl_stub.bin 0x0
     Execute Command         cpu0 PC 0x0
     Create Terminal Tester  sysbus.uart5    timeout=5
