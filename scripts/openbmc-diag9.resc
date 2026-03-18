@@ -1,7 +1,17 @@
 mach create "ast2600"
 machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
+
+# Load firmware into bootrom for u-boot execution
 sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
-sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x20000000
+
+# Load firmware into flash backing store (at 0x60000000 = flashMem on sysbus)
+# This populates the MappedMemory that the FMC reads in normal mode at 0x20000000,
+# so the kernel's MTD driver will see real flash data (partitions, rootfs, etc.)
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x60000000
+
+# Load firmware into DRAM for fast bootm (FIT image at offset 0x100000)
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x88000000
+
 sysbus SilenceRange <0x1E630000 0xC4>
 sysbus SilenceRange <0x30000000 0x10000000>
 sysbus SilenceRange <0x1E631000 0xC4>
@@ -13,7 +23,6 @@ sysbus SilenceRange <0x1E6A0000 0x1000>
 sysbus SilenceRange <0x1E6A3000 0x1000>
 sysbus SilenceRange <0x1E700000 0x1000>
 
-# Log level WARNING to see our diagnostics
 logLevel 2
 uart5 CreateFileBackend @/tmp/openbmc-diag9.txt true
 
@@ -61,9 +70,10 @@ uart5 WriteChar 0xD
 
 uart5 WriteLine "setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8 nosmp maxcpus=1 panic=-1"
 emulation RunFor "1"
-uart5 WriteLine "boot"
+# Boot from DRAM copy (FIT at offset 0x100000 from load base 0x88000000)
+uart5 WriteLine "bootm 88100000"
 
-# Run long enough to see both corruption detection and late-store watchpoints
-emulation RunFor "25"
+# Run long enough for full systemd boot (kernel ~6s + systemd ~120s)
+emulation RunFor "180"
 
 quit

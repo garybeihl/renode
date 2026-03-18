@@ -16,8 +16,10 @@ ${UART5}            sysbus.uart5
 Create OpenBMC Machine
     Execute Command     mach create "ast2600"
     Execute Command     machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
+    # Load firmware into bootrom (0x0), flash backing store (0x60000000), and DRAM (0x88000000)
     Execute Command     sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
-    Execute Command     sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x20000000
+    Execute Command     sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x60000000
+    Execute Command     sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x88000000
 
     # Silence unmapped peripheral regions to prevent driver probe hangs
     Execute Command     sysbus SilenceRange <0x1E630000 0xC4>
@@ -62,10 +64,10 @@ Should Start Kernel With Earlycon
     Wait For Line On Uart    autoboot    timeout=30    includeUnfinishedLine=true
     Write Line To Uart
     Wait For Line On Uart    =>    timeout=5    includeUnfinishedLine=true
-    # Add earlycon for early kernel output and boot
-    Write Line To Uart    setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8
+    # Add earlycon and boot from DRAM copy (FIT at offset 0x100000)
+    Write Line To Uart    setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8 nosmp maxcpus=1 panic=-1
     Wait For Line On Uart    =>    timeout=5    includeUnfinishedLine=true
-    Write Line To Uart    bootm 20080000
+    Write Line To Uart    bootm 88100000
     Wait For Line On Uart    Starting kernel    timeout=60
 
 Should Boot Linux Kernel
