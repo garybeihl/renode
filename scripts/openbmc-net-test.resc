@@ -1,12 +1,14 @@
 mach create "ast2600"
 machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
 
+# Create network switch and connect eth1
+emulation CreateSwitch "switch"
+connector Connect sysbus.eth1 switch
+
 # Load firmware into bootrom for u-boot execution
 sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
 
 # Load firmware into flash backing store (at 0x60000000 = flashMem on sysbus)
-# This populates the MappedMemory that the FMC reads in normal mode at 0x20000000,
-# so the kernel's MTD driver will see real flash data (partitions, rootfs, etc.)
 sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x60000000
 
 # Load firmware into DRAM for fast bootm (FIT image at offset 0x100000)
@@ -23,7 +25,7 @@ sysbus SilenceRange <0x1E6A3000 0x1000>
 sysbus SilenceRange <0x1E700000 0x1000>
 
 logLevel 2
-uart5 CreateFileBackend @/tmp/openbmc-diag9.txt true
+uart5 CreateFileBackend @/tmp/openbmc-net-test.txt true
 
 # Autoboot interrupt
 emulation RunFor "0.5"

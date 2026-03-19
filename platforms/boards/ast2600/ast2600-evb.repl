@@ -119,14 +119,22 @@ adc: Miscellaneous.Aspeed_ADC @ sysbus 0x1E6E9000
 lpc: Miscellaneous.Aspeed_LPC @ sysbus 0x1E789000
     IRQ -> gic@35
 
-eth1: Miscellaneous.Aspeed_FTGMAC100 @ sysbus 0x1E660000
+mdio0: Network.Aspeed_MDIO @ sysbus 0x1E650000
+
+mdio1: Network.Aspeed_MDIO @ sysbus 0x1E650008
+
+mdio2: Network.Aspeed_MDIO @ sysbus 0x1E650010
+
+mdio3: Network.Aspeed_MDIO @ sysbus 0x1E650018
+
+eth1: Network.Aspeed_FTGMAC100 @ sysbus 0x1E660000
     IRQ -> gic@2
 
-eth2: Miscellaneous.Aspeed_FTGMAC100 @ sysbus 0x1E680000
+eth2: Network.Aspeed_FTGMAC100 @ sysbus 0x1E680000
     IRQ -> gic@3
 
-eth3: Miscellaneous.Aspeed_FTGMAC100 @ sysbus 0x1E670000
+eth3: Network.Aspeed_FTGMAC100 @ sysbus 0x1E670000
     IRQ -> gic@32
 
-eth4: Miscellaneous.Aspeed_FTGMAC100 @ sysbus 0x1E690000
+eth4: Network.Aspeed_FTGMAC100 @ sysbus 0x1E690000
     IRQ -> gic@33
