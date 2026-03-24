@@ -26,7 +26,6 @@ Create OpenBMC Machine
     Execute Command     sysbus SilenceRange <0x30000000 0x10000000>
     Execute Command     sysbus SilenceRange <0x1E631000 0xC4>
     Execute Command     sysbus SilenceRange <0x50000000 0x10000000>
-    Execute Command     sysbus SilenceRange <0x1E650000 0x20>
     Execute Command     sysbus SilenceRange <0x1E740000 0x10000>
     Execute Command     sysbus SilenceRange <0x1E750000 0x10000>
     Execute Command     sysbus SilenceRange <0x1E6A0000 0x1000>

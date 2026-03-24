@@ -87,6 +87,10 @@ wdt3: Timers.Aspeed_WDT @ sysbus 0x1E785080
 
 wdt4: Timers.Aspeed_WDT @ sysbus 0x1E7850C0
 
+uart1: UART.NS16550 @ sysbus 0x1E783000
+    wideRegisters: true
+    IRQ -> gic@47
+
 uart5: UART.NS16550 @ sysbus 0x1E784000
     wideRegisters: true
     IRQ -> gic@8

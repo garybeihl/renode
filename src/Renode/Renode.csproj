@@ -146,6 +146,16 @@
     <Compile Include="Network\NetworkServer\Modules\TftpServerModule.cs" />
     <Compile Include="Integrations\ArduinoLoader.cs" />
     <Compile Include="Integrations\AsciinemaRecorder.cs" />
+    <Compile Include="Integrations\PldmFirmwareDevice\PldmFirmwareDevice.cs" />
+    <Compile Include="Integrations\PldmFirmwareDevice\MctpSerialTransport.cs" />
+    <Compile Include="Integrations\PldmFirmwareDevice\MctpPacket.cs" />
+    <Compile Include="Integrations\PldmFirmwareDevice\MctpControlHandler.cs" />
+    <Compile Include="Integrations\PldmFirmwareDevice\PldmEncoder.cs" />
+    <Compile Include="Integrations\PldmFirmwareDevice\PldmBaseHandler.cs" />
+    <Compile Include="Integrations\PldmFirmwareDevice\PldmFirmwareUpdateHandler.cs" />
+    <Compile Include="Integrations\PldmFirmwareDevice\PldmPlatformHandler.cs" />
+    <Compile Include="Integrations\PldmFirmwareDevice\ScenarioConfig.cs" />
+    <Compile Include="Integrations\PldmFirmwareDevice\CrcCcitt.cs" />
     <Compile Include="Network\ExternalControl\ICommand.cs" />
     <Compile Include="Network\ExternalControl\Response.cs" />
     <Compile Include="Network\ExternalControl\RunFor.cs" />
@@ -246,6 +256,7 @@
     <Folder Include="PlatformDescription\UserInterface\" />
     <Folder Include="Connectors\" />
     <Folder Include="UI\" />
+    <Folder Include="Integrations\PldmFirmwareDevice\" />
     <Folder Include="Resources\" />
     <Folder Include="EmulationEnvironment\" />
   </ItemGroup>
