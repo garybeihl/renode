@@ -308,7 +308,233 @@ python3 tests/run_tests.py --skip-building --net tests/peripherals/Aspeed/ASPEED
 | ASPEED_LPC     | 15    | No                | KCS channels, IBF/OBF, IRQ, dual-gate |
 | ASPEED_FTGMAC100| 15   | No                | PHY MII, ISR W1C, MACCR SW_RST, link up |
 | ASPEED_OpenBMC | 7     | OpenBMC MTD image | Full Linux boot: SPL → kernel → systemd |
-| **Total**      | **185**|                   |                |
+| ASPEED_PLDM_FirmwareUpdate | 4 | OpenBMC MTD image + pldm-sim | PLDM firmware update: happy path, reject, verify failure |
+| **Total**      | **189**|                   |                |
+
+## PLDM Firmware Update E2E Tests
+
+### Overview
+
+The PLDM E2E test suite exercises the full PLDM firmware update flow on an
+emulated AST2600 BMC: boot OpenBMC, establish MCTP serial transport, discover
+the firmware device via pldmd, and run a firmware update over D-Bus.
+
+Everything runs inside Renode — no external processes, no sudo, no real
+hardware. A C# component called `PldmFirmwareDevice` emulates a PLDM firmware
+device on UART1 (`/dev/ttyS0` in the guest). Different JSON scenario files
+control the device's behavior (accept, reject, verification failure).
+
+```
+┌──────────────────────────────────────────┐
+│              Renode Emulation             │
+│                                          │
+│  ┌─────────────────┐   ┌──────────────┐ │
+│  │  AST2600 Guest   │   │ PldmFirmware │ │
+│  │                  │   │   Device     │ │
+│  │  OpenBMC Linux   │   │  (C# class)  │ │
+│  │  ┌────────────┐  │   │              │ │
+│  │  │   pldmd    │──│───│─ UART1/MCTP ─│ │
+│  │  └────────────┘  │   │              │ │
+│  │  ┌────────────┐  │   │  Scenario:   │ │
+│  │  │   mctpd    │  │   │  *.json      │ │
+│  │  └────────────┘  │   └──────────────┘ │
+│  │     UART5 ───────│──→ Terminal Tester  │
+│  └─────────────────┘                     │
+└──────────────────────────────────────────┘
+```
+
+### Quick Start (From Scratch)
+
+If you're new to Renode, follow these steps to get from zero to running the
+PLDM E2E tests.
+
+#### 1. Install Prerequisites
+
+```bash
+# .NET 8.0 SDK (required to build Renode)
+wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
+chmod +x dotnet-install.sh
+./dotnet-install.sh --channel 8.0
+export PATH="$HOME/.dotnet:$PATH"
+export DOTNET_ROOT="$HOME/.dotnet"
+
+# Python 3.8+ and Robot Framework
+sudo apt install python3 python3-pip python3-venv
+```
+
+#### 2. Clone and Build Renode
+
+```bash
+git clone https://github.com/renode/renode.git
+cd renode
+
+# Build (headless, .NET, skip submodule fetch if already present)
+./build.sh --net --no-gui --skip-fetch
+
+# Set up Python virtual environment for test runner
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r tests/requirements.txt
+```
+
+Build output goes to `output/bin/Release/`. Verify the build:
+
+```bash
+dotnet output/bin/Release/Renode.dll --version
+```
+
+#### 3. Obtain Firmware and Test Artifacts
+
+The PLDM E2E tests require two things beyond a base Renode build:
+
+**OpenBMC image** — a Yocto-built MTD image placed at:
+```
+tests/peripherals/Aspeed/firmware/openbmc-image.bin
+```
+
+This is the same image used by the `ASPEED_OpenBMC` test suite. See
+"Building Firmware" above for the flash image layout. The OpenBMC image
+must be built from the OpenBMC Yocto build system targeting `evb-ast2600`.
+
+**pldm-sim artifacts** — the PLDM firmware package and scenario files. These
+live in a sibling `pldm-sim/` directory relative to the Renode repo:
+
+```
+<workspace>/
+├── renode/                     ← this repo
+└── pldm-sim/
+    ├── test_fw_pkg.pldm        ← firmware package (binary)
+    └── scenarios/
+        ├── gpu-terminus.json           ← happy path
+        ├── reject-update.json          ← component rejection
+        └── verify-failure-renode.json  ← verification failure
+```
+
+The Robot test references these via `${CURDIR}/../../../../pldm-sim/`. If
+your directory layout differs, adjust the paths in the `*** Variables ***`
+section of the `.robot` file.
+
+#### 4. Run the Tests
+
+```bash
+cd renode
+source .venv/bin/activate
+
+# Run all PLDM E2E tests (~40 minutes)
+python3 tests/run_tests.py \
+    --robot-framework-remote-server-full-directory output/bin/Release \
+    --robot-framework-remote-server-name Renode \
+    --css-file "" \
+    --include pldm \
+    tests/peripherals/Aspeed/ASPEED_PLDM_FirmwareUpdate.robot
+```
+
+Results are written to `tests/tests/report.html`.
+
+### Running Individual Tests
+
+Use Robot Framework tags to select specific scenarios:
+
+```bash
+# Happy path only
+python3 tests/run_tests.py ... --include firmware-update \
+    tests/peripherals/Aspeed/ASPEED_PLDM_FirmwareUpdate.robot
+
+# Component rejection only
+python3 tests/run_tests.py ... --include reject \
+    tests/peripherals/Aspeed/ASPEED_PLDM_FirmwareUpdate.robot
+
+# Verify failure only
+python3 tests/run_tests.py ... --include verify-failure \
+    tests/peripherals/Aspeed/ASPEED_PLDM_FirmwareUpdate.robot
+```
+
+Note: each scenario test requires the boot test (`--include boot`). Robot
+Framework's `Requires` keyword automatically pulls in the boot test when
+a scenario test is selected.
+
+### Test Scenarios
+
+| Test Case | Tag | Scenario File | What It Tests |
+|-----------|-----|---------------|---------------|
+| Should Boot And Login To OpenBMC | `boot` | — | Boots OpenBMC, logs in, snapshots state |
+| Should Complete PLDM Firmware Update | `firmware-update` | `gpu-terminus.json` | Single component, update succeeds |
+| Should Handle Component Rejection | `reject` | `reject-update.json` | Component 100 rejected (COMP_NOT_SUPPORTED), component 200 accepted and updated |
+| Should Handle Verify Failure | `verify-failure` | `verify-failure-renode.json` | Transfer succeeds, VerifyComplete returns VERIFICATION_FAILURE |
+
+### Test Architecture
+
+#### Provides/Requires (Boot Snapshot)
+
+Booting OpenBMC takes ~7 minutes of wall-clock time. To avoid repeating
+this for each scenario, the boot test uses Robot Framework's
+`Provides`/`Requires` mechanism:
+
+1. **Boot test** boots OpenBMC, logs in, pauses the emulation, then calls
+   `Provides booted-state` to snapshot the full machine state.
+2. **Each scenario test** calls `Requires booted-state` to restore from
+   the snapshot, then attaches a fresh `PldmFirmwareDevice` with its
+   scenario JSON.
+
+`PldmFirmwareDevice` is created **after** the restore because it does not
+implement Renode's serialization interface (`ISerializable`). Since UART1
+is unused during boot (the console is UART5), its state is clean after
+restore, and the freshly attached device works correctly.
+
+#### Test Flow Per Scenario
+
+After the boot snapshot is restored, each scenario test runs these phases:
+
+1. **Attach PLDM Device** — create `PldmFirmwareDevice` with the scenario
+   JSON, connect to UART1, enable verbose logging
+2. **Configure MCTP** — start `mctp link serial /dev/ttyS0`, assign
+   addresses and routes, register endpoint via `AssignEndpointStatic`
+3. **Start pldmd** — `systemctl start pldmd`, verify it is running
+4. **Transfer firmware package** — send `test_fw_pkg.pldm` to the guest
+   via `printf` hex escapes (no `base64` on this image)
+5. **Trigger update** — D-Bus `StartUpdate` call, wait 120s virtual time
+6. **Assert** — grep pldmd journal for expected log messages
+
+### Firmware Package Compatibility
+
+The firmware package (`test_fw_pkg.pldm`) contains:
+- **Device UUID**: `162023C9-3EC5-4115-95F4-48701D49D675`
+- **Component 100**: `RejectMe1.0`
+- **Component 200**: `AcceptMe1.0`
+
+pldmd matches firmware devices by UUID and components by ID. Scenario JSON
+files must use a matching UUID and component IDs or the update won't be
+attempted. The `verify-failure-renode.json` scenario uses matching IDs
+(unlike the standalone `verify-failure.json` which uses different IDs for
+pldm-sim unit testing).
+
+### Adding a New Scenario
+
+1. **Create the scenario JSON** in `pldm-sim/scenarios/`. Use the firmware
+   package UUID (`162023C9-3EC5-4115-95F4-48701D49D675`) and component IDs
+   (100 and/or 200) so pldmd matches the device. See existing scenarios for
+   the schema.
+
+2. **Add a variable** in the Robot file's `*** Variables ***` section:
+   ```
+   ${MY_SCENARIO}    ${CURDIR}/../../../../pldm-sim/scenarios/my-scenario.json
+   ```
+
+3. **Add a test case** in `*** Test Cases ***`:
+   ```
+   Should Handle My Scenario
+       [Documentation]    Description of what this tests
+       [Tags]             pldm    my-tag
+       Requires           booted-state
+       Attach PLDM Device    ${MY_SCENARIO}
+       Configure MCTP
+       Start Pldmd
+       Transfer Firmware Package
+       Trigger Firmware Update
+       Assert Journal Contains    expected log pattern    MARKER
+   ```
+
+4. **Run the test** with `--include my-tag` to verify.
 
 ## Interactive Boot
 
@@ -477,12 +703,27 @@ tests/peripherals/Aspeed/
     ASPEED_SPL_Boot.robot             # SPL stub integration tests
     ASPEED_UBoot.robot                # Full u-boot boot tests
     ASPEED_OpenBMC.robot              # OpenBMC Linux boot test
+    ASPEED_PLDM_FirmwareUpdate.robot  # PLDM firmware update E2E tests
     ast2600-spl-boot.resc             # SPL stub boot script
     firmware/
         ast2600_spl_stub.S            # SPL stub source (assembly)
         ast2600_spl_stub.bin          # Pre-built stub (204 bytes)
         Makefile                      # Stub build rules
         flash.bin                     # Combined flash image (not in git)
+        openbmc-image.bin             # OpenBMC MTD image (not in git)
+
+src/Renode/Integrations/PldmFirmwareDevice/
+    PldmFirmwareDevice.cs             # Main device class (MCTP serial + PLDM)
+    PldmFirmwareUpdateResponder.cs    # Firmware update state machine
+    McptSerialTransport.cs            # MCTP serial framing/deframing
+    ...                               # 10 .cs files total
+
+../pldm-sim/                          # Sibling repo: PLDM device simulator
+    test_fw_pkg.pldm                  # Firmware package for E2E tests
+    scenarios/
+        gpu-terminus.json             # Happy path: single-component update
+        reject-update.json            # Component rejection scenario
+        verify-failure-renode.json    # Verification failure (Renode-compatible)
 ```
 
 Note: `flash.bin`, `u-boot-spl.bin`, and `u-boot.bin` are listed in `.gitignore`
