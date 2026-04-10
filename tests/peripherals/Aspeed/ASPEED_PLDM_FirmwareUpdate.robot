@@ -22,6 +22,7 @@ ${FW_PKG}                   ${CURDIR}/../../../../pldm-sim/test_fw_pkg.pldm
 ${DEFAULT_SCENARIO}         ${CURDIR}/../../../../pldm-sim/scenarios/gpu-terminus.json
 ${REJECT_SCENARIO}          ${CURDIR}/../../../../pldm-sim/scenarios/reject-update.json
 ${VERIFY_FAIL_SCENARIO}     ${CURDIR}/../../../../pldm-sim/scenarios/verify-failure-renode.json
+${MALFORMED_SCENARIO}       ${CURDIR}/../../../../pldm-sim/scenarios/malformed-update-component.json
 
 *** Keywords ***
 Create Base Machine
@@ -59,11 +60,14 @@ Pause And Run For
 
 Boot And Login
     [Documentation]    Boot OpenBMC, interrupt autoboot, configure kernel, login
-    Execute Command    emulation RunFor "5"
-    Wait For Line On Uart    U-Boot SPL    timeout=30
-    Wait For Line On Uart    autoboot    timeout=30    includeUnfinishedLine=true
-    Write Line To Uart
-    Wait For Line On Uart    ast#    timeout=10    includeUnfinishedLine=true
+    # Send CR repeatedly during u-boot init to interrupt autoboot.
+    # The 0.5s intervals ensure at least one keypress lands during
+    # the 2-second autoboot countdown window.
+    FOR    ${i}    IN RANGE    20
+        Execute Command    emulation RunFor "0.5"
+        Execute Command    uart5 WriteChar 0xD
+    END
+    Wait For Line On Uart    ast#    timeout=30    includeUnfinishedLine=true
     Write Line To Uart    setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8 nosmp maxcpus=1 panic=-1
     Wait For Line On Uart    ast#    timeout=10    includeUnfinishedLine=true
     Write Line To Uart    bootm 88100000
@@ -127,17 +131,20 @@ Trigger Firmware Update
 
 Assert Journal Contains
     [Documentation]    Assert pldmd journal contains a pattern
+    ...                Uses $? (resolved at runtime) so the marker pattern in
+    ...                the Wait For Line assertion does not appear in the
+    ...                echoed command, which would cause a false positive.
     [Arguments]    ${pattern}    ${marker}
-    Write Line To Uart    journalctl -u pldmd --no-pager | grep -q "${pattern}" && echo ${marker}_YES || echo ${marker}_NO    waitForEcho=false
+    Write Line To Uart    journalctl -u pldmd --no-pager | grep -q "${pattern}"; echo "${marker}_rc_$?"    waitForEcho=false
     Pause And Run For    5
-    Wait For Line On Uart    ${marker}_YES    timeout=30    includeUnfinishedLine=true
+    Wait For Line On Uart    ${marker}_rc_0    timeout=30    includeUnfinishedLine=true
 
 Assert Journal Does Not Contain
     [Documentation]    Assert pldmd journal does NOT contain a pattern
     [Arguments]    ${pattern}    ${marker}
-    Write Line To Uart    journalctl -u pldmd --no-pager | grep -q "${pattern}" && echo ${marker}_YES || echo ${marker}_NO    waitForEcho=false
+    Write Line To Uart    journalctl -u pldmd --no-pager | grep -q "${pattern}"; echo "${marker}_rc_$?"    waitForEcho=false
     Pause And Run For    5
-    Wait For Line On Uart    ${marker}_NO    timeout=30    includeUnfinishedLine=true
+    Wait For Line On Uart    ${marker}_rc_1    timeout=30    includeUnfinishedLine=true
 
 *** Test Cases ***
 Should Boot And Login To OpenBMC
@@ -185,4 +192,23 @@ Should Handle Verify Failure
     # Verify failure should be logged
     Assert Journal Contains    Failed to verify component    VERIFY_FAIL
     # Update should NOT have completed
+    Assert Journal Does Not Contain    Firmware update time    FW_TIME
+
+Should Handle Malformed Update Component Response
+    [Documentation]    pldmd notifies UpdateManager when UpdateComponent response
+    ...                fails to decode. Regression test for silent decode-failure
+    ...                bug where the update state machine would hang indefinitely.
+    [Tags]             pldm    malformed-response
+    Requires           booted-state
+    Attach PLDM Device    ${MALFORMED_SCENARIO}
+    Configure MCTP
+    Start Pldmd
+    Transfer Firmware Package
+    Trigger Firmware Update
+    # The decode failure should be logged (short pattern to avoid UART glitches)
+    Assert Journal Contains    decode update request    DECODE_FAIL
+    # updateDeviceCompletion(eid, false) must be called, causing
+    # UpdateManager to log the failure and transition to Failed state
+    Assert Journal Contains    update failed on eid    COMPLETION_NOTIFIED
+    # The update must not incorrectly report success
     Assert Journal Does Not Contain    Firmware update time    FW_TIME

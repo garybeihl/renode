@@ -383,6 +383,18 @@ namespace Antmicro.Renode.Integrations
             resp[5] = compCompatCode;
             PldmEncoder.WriteLE32(resp, 6, 0); // update_option_flags_used
             PldmEncoder.WriteLE16(resp, 10, 0); // estimated_time = immediate
+
+            // Test-only: truncate the response so the BMC's decoder fails.
+            // The BMC's decode_update_component_resp() expects a 9-byte payload
+            // after the 3-byte header. Truncating to 6 bytes (3 hdr + 3 payload)
+            // produces a length mismatch and returns PLDM_ERROR_INVALID_LENGTH.
+            if(componentIndex >= 0 &&
+               config.Components[componentIndex].MalformedUpdateComponentResponse)
+            {
+                logger.Log(LogLevel.Warning,
+                    "PLDM FWUP: injecting malformed UpdateComponent response (truncated)");
+                Array.Resize(ref resp, 6);
+            }
             return resp;
         }
 

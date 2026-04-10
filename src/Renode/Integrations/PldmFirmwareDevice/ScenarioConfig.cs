@@ -22,6 +22,19 @@ namespace Antmicro.Renode.Integrations
         public byte VerifyResult = PldmEncoder.VerifySuccess;
         public byte ApplyResult = PldmEncoder.ApplySuccess;
         public bool ActivateSelf = true;
+        // Test-only: truncate the UpdateComponent response so the BMC's
+        // decode_update_component_resp() fails. Used to exercise the decode
+        // failure path in pldmd.
+        public bool MalformedUpdateComponentResponse = false;
+    }
+
+    public class SensorConfig
+    {
+        public ushort Id = 1;
+        public byte DataSize = PldmEncoder.SensorDataSizeUint32;
+        public long Value;
+        public byte BaseUnit = 0; // unitless
+        public sbyte UnitModifier = 0;
     }
 
     public class ScenarioConfig
@@ -36,6 +49,7 @@ namespace Antmicro.Renode.Integrations
         public byte[] PldmVersion = { 0xF1, 0xF1, 0xF0 }; // 1.1.0
         public string ImageSetVersion = "1.0.0";
         public List<ComponentConfig> Components = new List<ComponentConfig>();
+        public List<SensorConfig> Sensors = new List<SensorConfig>();
         public bool PlatformEnabled = false;
 
         public static ScenarioConfig LoadDefaults()
@@ -114,6 +128,10 @@ namespace Antmicro.Renode.Integrations
                                 {
                                     sc.ApplyResult = ParseApplyResult(jc["apply_result"] as string);
                                 }
+                                if(jc.ContainsKey("malformed_update_component_response"))
+                                {
+                                    sc.MalformedUpdateComponentResponse = (bool)jc["malformed_update_component_response"];
+                                }
                                 cfg.Components.Add(sc);
                             }
                         }
@@ -124,9 +142,40 @@ namespace Antmicro.Renode.Integrations
             if(root.ContainsKey("platform"))
             {
                 var plat = root["platform"] as Dictionary<string, object>;
-                if(plat != null && plat.ContainsKey("enabled"))
+                if(plat != null)
                 {
-                    cfg.PlatformEnabled = (bool)plat["enabled"];
+                    if(plat.ContainsKey("enabled"))
+                    {
+                        cfg.PlatformEnabled = (bool)plat["enabled"];
+                    }
+                    if(plat.ContainsKey("sensors"))
+                    {
+                        var sensors = plat["sensors"] as List<object>;
+                        if(sensors != null)
+                        {
+                            foreach(var item in sensors)
+                            {
+                                var js = item as Dictionary<string, object>;
+                                if(js == null) continue;
+                                var sc = new SensorConfig();
+                                if(js.ContainsKey("id")) sc.Id = ToUInt16(js["id"]);
+                                if(js.ContainsKey("data_size"))
+                                {
+                                    sc.DataSize = ParseDataSize(js["data_size"] as string);
+                                }
+                                if(js.ContainsKey("value"))
+                                {
+                                    sc.Value = Convert.ToInt64(js["value"]);
+                                }
+                                if(js.ContainsKey("base_unit")) sc.BaseUnit = ToByte(js["base_unit"]);
+                                if(js.ContainsKey("unit_modifier"))
+                                {
+                                    sc.UnitModifier = (sbyte)Convert.ToInt32(js["unit_modifier"]);
+                                }
+                                cfg.Sensors.Add(sc);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -188,6 +237,22 @@ namespace Antmicro.Renode.Integrations
                 case "SUCCESS_WITH_ACTIVATION_METHOD": return PldmEncoder.ApplySuccessWithActivationMethod;
                 case "FAILURE_MEMORY_ISSUE": return PldmEncoder.ApplyFailureMemoryIssue;
                 default: return PldmEncoder.ApplySuccess;
+            }
+        }
+
+        private static byte ParseDataSize(string s)
+        {
+            switch(s)
+            {
+                case "UINT8": return PldmEncoder.SensorDataSizeUint8;
+                case "SINT8": return PldmEncoder.SensorDataSizeSint8;
+                case "UINT16": return PldmEncoder.SensorDataSizeUint16;
+                case "SINT16": return PldmEncoder.SensorDataSizeSint16;
+                case "UINT32": return PldmEncoder.SensorDataSizeUint32;
+                case "SINT32": return PldmEncoder.SensorDataSizeSint32;
+                case "UINT64": return PldmEncoder.SensorDataSizeUint64;
+                case "SINT64": return PldmEncoder.SensorDataSizeSint64;
+                default: return PldmEncoder.SensorDataSizeUint32;
             }
         }
 
