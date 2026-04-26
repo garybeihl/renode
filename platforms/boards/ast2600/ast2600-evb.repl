@@ -126,7 +126,7 @@ lpc: Miscellaneous.Aspeed_LPC @ sysbus 0x1E789000
 vuart: Miscellaneous.Aspeed_VUART @ sysbus 0x1E787000
     IRQ -> gic@8
 
-smlink0: Miscellaneous.Aspeed_SMLink0 @ sysbus 0x1E78B100
+smlink0: Miscellaneous.Aspeed_SMLink0 @ sysbus 0x1E78C000
     IRQ -> gic@110
 
 mdio0: Network.Aspeed_MDIO @ sysbus 0x1E650000

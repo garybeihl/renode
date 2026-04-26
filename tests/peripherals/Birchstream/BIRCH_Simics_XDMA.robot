@@ -50,9 +50,12 @@ Write Descriptor
     [Arguments]             ${queue_base}  ${index}  ${src}  ${dst}  ${length}  ${flags}=0x0
     ${desc_addr}=           Evaluate  ${queue_base} + ${index} * ${DESC_SIZE}
     Write Memory Word       ${desc_addr}       ${src}
-    Write Memory Word       ${desc_addr}+4     ${dst}
-    Write Memory Word       ${desc_addr}+8     ${length}
-    Write Memory Word       ${desc_addr}+12    ${flags}
+    ${addr4}=              Evaluate  ${desc_addr} + 4
+    ${addr8}=              Evaluate  ${desc_addr} + 8
+    ${addr12}=             Evaluate  ${desc_addr} + 12
+    Write Memory Word       ${addr4}      ${dst}
+    Write Memory Word       ${addr8}      ${length}
+    Write Memory Word       ${addr12}     ${flags}
 
 Fill Memory Region
     [Documentation]         Fill memory region with incrementing pattern
@@ -112,7 +115,7 @@ Transfer With Status Clear And Retrigger
     [Documentation]         Clear status, retrigger transfer (Simics XDMA boot 3)
     [Tags]                  simics  xdma  boot  retrigger
     Create AST2600 Machine
-    Write Memory Word       0x82000060  0xFIRSTTRN
+    Write Memory Word       0x82000060  0xF157744E
     Setup Command Queue
     Write Descriptor        ${SRAM_BASE}  0  0x82000060  0x80100000  0x8
     Write XDMA Register    ${CMDQ_WRP}  0x1
@@ -125,7 +128,7 @@ Transfer With Status Clear And Retrigger
     ${comp_cleared}=        Evaluate  ${cleared} & ${STATUS_DS_COMP}
     Should Be Equal As Numbers  ${comp_cleared}  0x0
     # New data, retrigger
-    Write Memory Word       0x82000160  0xSECONDTR
+    Write Memory Word       0x82000160  0x5EC04D74
     Write Descriptor        ${SRAM_BASE}  1  0x82000160  0x80100008  0x8
     Write XDMA Register    ${CMDQ_WRP}  0x2
     ${status2}=             Read XDMA Register  ${STATUS}
@@ -136,14 +139,14 @@ Transfer After Cold Reset
     [Documentation]         XDMA works after cold reset (Simics XDMA boot 4)
     [Tags]                  simics  xdma  boot  reset
     Create AST2600 Machine
-    Write Memory Word       0x82000060  0xPRERESET
+    Write Memory Word       0x82000060  0x94E4E5E7
     Setup Command Queue
     Write Descriptor        ${SRAM_BASE}  0  0x82000060  0x80100000  0x8
     Write XDMA Register    ${CMDQ_WRP}  0x1
     # Reset
     Execute Command         espi ColdReset
     # Re-setup after reset
-    Write Memory Word       0x82000060  0xPOSTRSET
+    Write Memory Word       0x82000060  0x905745E7
     Setup Command Queue
     Write Descriptor        ${SRAM_BASE}  0  0x82000060  0x80100000  0x8
     Write XDMA Register    ${CMDQ_WRP}  0x1
@@ -155,7 +158,7 @@ Transfer Alignment Boundary
     [Documentation]         Transfer at exactly 8-byte boundary (Simics XDMA boot 5)
     [Tags]                  simics  xdma  boot  alignment
     Create AST2600 Machine
-    Write Memory Word       0x82000008  0xALIGN008
+    Write Memory Word       0x82000008  0xA1194008
     Setup Command Queue
     # All addresses 8-byte aligned
     Write Descriptor        ${SRAM_BASE}  0  0x82000008  0x80100008  0x8
@@ -164,7 +167,7 @@ Transfer Alignment Boundary
     ${comp}=                Evaluate  ${status} & ${STATUS_DS_COMP}
     Should Not Be Equal As Numbers  ${comp}  0x0
     ${v}=                   Read Memory Word  0x80100008
-    Should Be Equal As Numbers  ${v}  0xALIGN008
+    Should Be Equal As Numbers  ${v}  0xA1194008
 
 Full Boot Path KCS Then XDMA
     [Documentation]         KCS discovery followed by XDMA transfer (Simics XDMA boot 6)
@@ -174,12 +177,12 @@ Full Boot Path KCS Then XDMA
     Execute Command         lpc WriteDoubleWord 0x00 0x20
     Execute Command         lpc WriteDoubleWord 0x08 0x02
     # KCS: Get Device ID
-    Execute Command         lpc SendHostIpmiCommand 0x06 0x01 null 0
+    Execute Command         lpc SendHostIpmiCommand 0x06 0x01
     ${str}=  Execute Command    lpc ReadDoubleWord 0x3C
     ${obf}=                 Evaluate  int(${str.strip()}) & 1
     Should Be Equal As Numbers  ${obf}  1
     # XDMA: transfer OS image
-    Write Memory Word       0x82000060  0xBOOTIMGD
+    Write Memory Word       0x82000060  0xB007149D
     Setup Command Queue
     Write Descriptor        ${SRAM_BASE}  0  0x82000060  0x80100000  0x8
     Write XDMA Register    ${CMDQ_WRP}  0x1
@@ -187,4 +190,4 @@ Full Boot Path KCS Then XDMA
     ${comp}=                Evaluate  ${status} & ${STATUS_DS_COMP}
     Should Not Be Equal As Numbers  ${comp}  0x0
     ${v}=                   Read Memory Word  0x80100000
-    Should Be Equal As Numbers  ${v}  0xBOOTIMGD
+    Should Be Equal As Numbers  ${v}  0xB007149D

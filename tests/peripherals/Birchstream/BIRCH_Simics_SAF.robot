@@ -80,7 +80,7 @@ SAF BIOS Region Routing
     [Documentation]         Host addr 0x0 routes to FMC flash (Simics SAF test 5)
     [Tags]                  simics  saf  partition
     Create AST2600 Machine
-    Write Memory Word       0x20000000  0xBIOSDATA
+    Write Memory Word       0x20000000  0xB105DA7A
     Execute Command         espi HandleSafRead 0x0 4
     ${sts}=                 Read ESPI Register  0x008
     ${flash_rx}=            Evaluate  (int(${sts}) >> 6) & 1
@@ -110,7 +110,7 @@ SAF OS Region Deep Offset
     [Documentation]         Read from deep within OS region (Simics SAF test 8)
     [Tags]                  simics  saf  partition
     Create AST2600 Machine
-    Write Memory Word       0x82100000  0xDEEPDATA
+    Write Memory Word       0x82100000  0xDEE9DA7A
     Execute Command         espi HandleSafRead 0x01100000 4
     ${sts}=                 Read ESPI Register  0x008
     ${flash_rx}=            Evaluate  (int(${sts}) >> 6) & 1
@@ -154,7 +154,7 @@ SAF Mixed Region Reads
     [Documentation]         Alternating BIOS and OS region reads (Simics SAF test 12)
     [Tags]                  simics  saf  mixed
     Create AST2600 Machine
-    Write Memory Word       0x20000000  0xBIOSBIOS
+    Write Memory Word       0x20000000  0xB105B105
     Write Memory Word       0x82000000  0x4F534441
     Execute Command         espi HandleSafRead 0x0 4
     Execute Command         espi HandleSafRead 0x01000000 4
@@ -167,7 +167,7 @@ SAF WriteSafBootHeader
     [Documentation]         WriteSafBootHeader creates valid header (Simics SAF test 13)
     [Tags]                  simics  saf  header  method
     Create AST2600 Machine
-    Execute Command         espi WriteSafBootHeader 16 0x80100000 0x0 "new System.Byte[] {0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88}"
+    Execute Command         espi WriteSafBootHeader 16 0x80100000 0x0 "DEADBEEFCAFEBABE1122334455667788"
     ${magic}=               Read Memory Word  0x82000000
     Should Be Equal As Numbers  ${magic}  0x53414642
 
@@ -221,7 +221,7 @@ SAF Rapid Fire Reads
     [Documentation]         10 rapid sequential reads without clearing status (Simics SAF test 18)
     [Tags]                  simics  saf  stress
     Create AST2600 Machine
-    Write Memory Word       0x20000000  0xRAPIDDAT
+    Write Memory Word       0x20000000  0x4A91DDA7
     FOR  ${i}  IN RANGE  10
         ${offset}=          Evaluate  ${i} * 4
         Execute Command     espi HandleSafRead ${offset} 4

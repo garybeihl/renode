@@ -46,9 +46,12 @@ Write Descriptor
     [Arguments]             ${queue_base}  ${index}  ${src}  ${dst}  ${length}  ${flags}=0x0
     ${desc_addr}=           Evaluate  ${queue_base} + ${index} * ${DESC_SIZE}
     Write Memory Word       ${desc_addr}       ${src}
-    Write Memory Word       ${desc_addr}+4     ${dst}
-    Write Memory Word       ${desc_addr}+8     ${length}
-    Write Memory Word       ${desc_addr}+12    ${flags}
+    ${addr4}=              Evaluate  ${desc_addr} + 4
+    ${addr8}=              Evaluate  ${desc_addr} + 8
+    ${addr12}=             Evaluate  ${desc_addr} + 12
+    Write Memory Word       ${addr4}      ${dst}
+    Write Memory Word       ${addr8}      ${length}
+    Write Memory Word       ${addr12}     ${flags}
 
 *** Test Cases ***
 Misaligned Source Address Should Error
@@ -81,10 +84,10 @@ Large Multi Descriptor Boot Transfer
     Create AST2600 Machine
 
     # Write unique patterns at 4 locations in flash
-    Write Memory Word       0x20000000  0xBOOT0001
-    Write Memory Word       0x20001000  0xBOOT0002
-    Write Memory Word       0x20002000  0xBOOT0003
-    Write Memory Word       0x20003000  0xBOOT0004
+    Write Memory Word       0x20000000  0xB0070001
+    Write Memory Word       0x20001000  0xB0070002
+    Write Memory Word       0x20002000  0xB0070003
+    Write Memory Word       0x20003000  0xB0070004
 
     Setup Command Queue     ${SRAM_BASE}  0x200
 
@@ -106,10 +109,10 @@ Large Multi Descriptor Boot Transfer
     ${v2}=                  Read Memory Word  0x80010008
     ${v3}=                  Read Memory Word  0x80010010
     ${v4}=                  Read Memory Word  0x80010018
-    Should Be Equal As Numbers  ${v1}  0xBOOT0001
-    Should Be Equal As Numbers  ${v2}  0xBOOT0002
-    Should Be Equal As Numbers  ${v3}  0xBOOT0003
-    Should Be Equal As Numbers  ${v4}  0xBOOT0004
+    Should Be Equal As Numbers  ${v1}  0xB0070001
+    Should Be Equal As Numbers  ${v2}  0xB0070002
+    Should Be Equal As Numbers  ${v3}  0xB0070003
+    Should Be Equal As Numbers  ${v4}  0xB0070004
 
     # RDP should have advanced to 4
     ${rdp}=                 Read XDMA Register  ${CMDQ_RDP}

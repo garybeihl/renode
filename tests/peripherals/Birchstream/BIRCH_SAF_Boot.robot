@@ -21,7 +21,7 @@ Write And Validate SAF Boot Header
     # Create a small test image (16 bytes of pattern)
     # WriteSafBootHeader writes header + image data to DRAM OS region
     # Using the eSPI peripheral method directly
-    Execute Command         espi WriteSafBootHeader 16 0x80100000 0x0 "new System.Byte[] {0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88}"
+    Execute Command         espi WriteSafBootHeader 16 0x80100000 0x0 "DEADBEEFCAFEBABE1122334455667788"
 
     # Verify header magic at DRAM OS region base (0x82000000)
     ${magic}=               Read Memory Word  0x82000000
@@ -42,7 +42,7 @@ SAF Read BIOS Image Via Partition
 
     # Place a BIOS image signature in flash
     Write Memory Word       0x20000000  0x55AA55AA
-    Write Memory Word       0x20000004  0xBIOSBIOS
+    Write Memory Word       0x20000004  0xB105B105
 
     # Read via SAF partition (host addr 0x0 = BIOS region)
     Execute Command         espi HandleSafRead 0x0 8

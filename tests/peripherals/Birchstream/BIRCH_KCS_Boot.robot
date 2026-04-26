@@ -24,7 +24,7 @@ Get Device ID Via KCS
     Execute Command         lpc WriteDoubleWord 0x00 0x20
     Execute Command         lpc WriteDoubleWord 0x08 0x02
     # Send Get Device ID (netFn=0x06, cmd=0x01)
-    Execute Command         lpc SendHostIpmiCommand 0x06 0x01 null 0
+    Execute Command         lpc SendHostIpmiCommand 0x06 0x01
     # ODR should have response data (OBF set in STR1)
     ${str}=                 Read LPC Register  0x3C
     ${obf}=                 Evaluate  ${str} & 1
@@ -38,7 +38,7 @@ Get Boot Options Via KCS
     Execute Command         lpc WriteDoubleWord 0x00 0x20
     Execute Command         lpc WriteDoubleWord 0x08 0x02
     # Send Get Boot Options (netFn=0x08, cmd=0x09)
-    Execute Command         lpc SendHostIpmiCommand 0x08 0x09 null 0
+    Execute Command         lpc SendHostIpmiCommand 0x08 0x09
     # ODR should have response
     ${str}=                 Read LPC Register  0x3C
     ${obf}=                 Evaluate  ${str} & 1
@@ -51,8 +51,8 @@ XDMA Metadata Properties
     # Verify defaults
     ${base}=  Execute Command    lpc XdmaBaseAddress
     ${size}=  Execute Command    lpc XdmaTransferSize
-    Should Contain          ${base}    0x80001000
-    Should Contain          ${size}    0x200000
+    Should Contain          ${base}    80001000
+    Should Contain          ${size}    200000
 
 Custom IPMI Override
     [Documentation]         Set custom override and verify auto-response
@@ -61,9 +61,9 @@ Custom IPMI Override
     Execute Command         lpc WriteDoubleWord 0x00 0x20
     Execute Command         lpc WriteDoubleWord 0x08 0x02
     # Set custom override for netFn=0x2C cmd=0x42
-    Execute Command         lpc SetIpmiOverride 0x2C 0x42 "System.Array.Empty<System.Byte>()"
+    Execute Command         lpc SetIpmiOverride 0x2C 0x42
     # Send the command
-    Execute Command         lpc SendHostIpmiCommand 0x2C 0x42 null 0
+    Execute Command         lpc SendHostIpmiCommand 0x2C 0x42
     # Should get auto-response (OBF set)
     ${str}=                 Read LPC Register  0x3C
     ${obf}=                 Evaluate  ${str} & 1
@@ -76,7 +76,7 @@ No Override Falls Through
     Execute Command         lpc WriteDoubleWord 0x00 0x20
     Execute Command         lpc WriteDoubleWord 0x08 0x02
     # Send command with no override configured (netFn=0x30, cmd=0x99)
-    Execute Command         lpc SendHostIpmiCommand 0x30 0x99 null 0
+    Execute Command         lpc SendHostIpmiCommand 0x30 0x99
     # IBF should be set (data waiting for BMC), but no auto-response
     ${str}=                 Read LPC Register  0x3C
     ${ibf}=                 Evaluate  (${str} >> 1) & 1

@@ -48,7 +48,7 @@ def generate_robot_keywords(trace: KcsInjectorTrace) -> str:
     lines.append(f"    [Documentation]    Replay {trace.name} IPMI sequence")
 
     for i, cmd in enumerate(trace.commands):
-        data_arg = "null"
+        data_arg = ""
         if cmd.data:
             hex_bytes = ", ".join(f"0x{b:02X}" for b in cmd.data)
             data_arg = f'"new System.Byte[] {{{hex_bytes}}}"'

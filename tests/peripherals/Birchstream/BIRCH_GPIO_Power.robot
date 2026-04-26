@@ -13,7 +13,8 @@ CPUPWRGD Assert And Deassert
     [Documentation]         BMC asserts and deasserts CPU power good
     [Tags]                  birchstream  gpio  power  cpupwrgd
     Create AST2600 Machine
-    # Initially not asserted
+    # Start from G3 so power signals are deasserted
+    Execute Command         espi MechanicalOff
     ${state}=  Execute Command    espi GetPowerSignalState
     ${pwrgd}=               Evaluate  int(${state.strip()}) & 1
     Should Be Equal As Numbers  ${pwrgd}  0

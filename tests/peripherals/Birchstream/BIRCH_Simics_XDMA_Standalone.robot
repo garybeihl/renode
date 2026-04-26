@@ -77,14 +77,14 @@ XDMA Bidirectional Transfer
     Write XDMA Register    ${CMDQ_RDP}   0x0
     Write XDMA Register    ${CTRL}       ${STATUS_DS_COMP}
     # Downstream: flash -> DRAM
-    Write Memory Word       0x20000000  0xDOWNSTRM
+    Write Memory Word       0x20000000  0xD0005740
     Write Memory Word       ${SRAM_BASE}        0x20000000
     Write Memory Word       0x10000004          0x80001000
     Write Memory Word       0x10000008          0x8
     Write Memory Word       0x1000000C          0x0
     Write XDMA Register    ${CMDQ_WRP}  0x1
     ${v}=                   Read Memory Word  0x80001000
-    Should Be Equal As Numbers  ${v}  0xDOWNSTRM
+    Should Be Equal As Numbers  ${v}  0xD0005740
 
 XDMA Queue Pointer Consistency
     [Documentation]         RDP tracks WRP after processing (Simics standalone 4)
@@ -98,9 +98,12 @@ XDMA Queue Pointer Consistency
     FOR  ${i}  IN RANGE  3
         ${base}=            Evaluate  0x10000000 + ${i} * 16
         Write Memory Word   ${base}      0x20000000
-        Write Memory Word   ${base}+4    0x80001000
-        Write Memory Word   ${base}+8    0x8
-        Write Memory Word   ${base}+12   0x0
+        ${base4}=          Evaluate  ${base} + 4
+        ${base8}=          Evaluate  ${base} + 8
+        ${base12}=         Evaluate  ${base} + 12
+        Write Memory Word   ${base4}     0x80001000
+        Write Memory Word   ${base8}     0x8
+        Write Memory Word   ${base12}    0x0
     END
     Write XDMA Register    ${CMDQ_WRP}  0x3
     ${rdp}=                 Read XDMA Register  ${CMDQ_RDP}

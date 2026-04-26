@@ -162,7 +162,7 @@ Flash Read BIOS Region End
     [Documentation]         Read last bytes of BIOS region (Simics test 12)
     [Tags]                  simics  espi  flash  boundary
     Create AST2600 Machine
-    Write Memory Word       0x20FFFFFC  0xLASTBIOS
+    Write Memory Word       0x20FFFFFC  0x1A57B105
     Execute Command         espi HandleSafRead 0x00FFFFFC 4
     ${sts}=                 Read ESPI Register  0x008
     ${flash_rx}=            Evaluate  (int(${sts}) >> 6) & 1
@@ -172,7 +172,7 @@ Flash Read OS Region Start
     [Documentation]         Read first bytes of OS region (Simics test 13)
     [Tags]                  simics  espi  flash  boundary
     Create AST2600 Machine
-    Write Memory Word       0x82000000  0xFIRSTOS0
+    Write Memory Word       0x82000000  0xF1570500
     Execute Command         espi HandleSafRead 0x01000000 4
     ${sts}=                 Read ESPI Register  0x008
     ${flash_rx}=            Evaluate  (int(${sts}) >> 6) & 1
