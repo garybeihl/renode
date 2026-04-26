@@ -147,5 +147,54 @@ namespace Antmicro.Renode.Integrations
             buf[offset + 2] = (byte)((value >> 16) & 0xFF);
             buf[offset + 3] = (byte)((value >> 24) & 0xFF);
         }
+        // Platform monitoring commands (DSP0248)
+        public const byte CmdGetSensorReading = 0x11;
+
+        // Sensor data size constants
+        public const byte SensorDataSizeUint8  = 0x00;
+        public const byte SensorDataSizeSint8  = 0x01;
+        public const byte SensorDataSizeUint16 = 0x02;
+        public const byte SensorDataSizeSint16 = 0x03;
+        public const byte SensorDataSizeUint32 = 0x04;
+        public const byte SensorDataSizeSint32 = 0x05;
+        public const byte SensorDataSizeUint64 = 0x06;
+        public const byte SensorDataSizeSint64 = 0x07;
+
+        // Sensor operational state
+        public const byte SensorOpStateEnabled  = 0x00;
+        public const byte SensorOpStateDisabled = 0x01;
+
+        // PDR types
+        public const byte PdrNumericSensor = 0x02;
+
+        public static void WriteReal32LE(byte[] buf, int offset, float value)
+        {
+            var bytes = System.BitConverter.GetBytes(value);
+            if(!System.BitConverter.IsLittleEndian)
+                System.Array.Reverse(bytes);
+            System.Array.Copy(bytes, 0, buf, offset, 4);
+        }
+        // Range field format constants (DSP0248 Table 78)
+        public const byte RangeFieldFormatUint8   = 0x00;
+        public const byte RangeFieldFormatSint8   = 0x01;
+        public const byte RangeFieldFormatUint16  = 0x02;
+        public const byte RangeFieldFormatSint16  = 0x03;
+        public const byte RangeFieldFormatUint32  = 0x04;
+        public const byte RangeFieldFormatSint32  = 0x05;
+        public const byte RangeFieldFormatUint64  = 0x06;
+        public const byte RangeFieldFormatSint64  = 0x07;
+        public const byte RangeFieldFormatReal32  = 0x08;
+
+        public static void WriteLE64(byte[] buf, int offset, ulong value)
+        {
+            buf[offset]     = (byte)(value & 0xFF);
+            buf[offset + 1] = (byte)((value >> 8) & 0xFF);
+            buf[offset + 2] = (byte)((value >> 16) & 0xFF);
+            buf[offset + 3] = (byte)((value >> 24) & 0xFF);
+            buf[offset + 4] = (byte)((value >> 32) & 0xFF);
+            buf[offset + 5] = (byte)((value >> 40) & 0xFF);
+            buf[offset + 6] = (byte)((value >> 48) & 0xFF);
+            buf[offset + 7] = (byte)((value >> 56) & 0xFF);
+        }
     }
 }
