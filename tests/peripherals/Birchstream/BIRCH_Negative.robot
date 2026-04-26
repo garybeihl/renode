@@ -14,6 +14,7 @@ ${STATUS_DS_COMP}   0x00020000
 ${STATUS_DS_DIRTY}  0x00040000
 ${SRAM_BASE}        0x10000000
 ${DESC_SIZE}        16
+${STATE_CONSUMED}   3
 
 *** Keywords ***
 Create AST2600 Machine
@@ -157,7 +158,7 @@ IPMI Command Without KCS Enabled
     [Tags]                  negative  kcs
     Create AST2600 Machine
     # Don't enable KCS — channel registers at default
-    Execute Command         lpc SendHostIpmiCommand 0x06 0x01 null 0
+    Execute Command         lpc SendHostIpmiCommand 0x06 0x01
     # IBF may or may not be set depending on implementation
     # Just verify no crash
 
@@ -168,10 +169,10 @@ Duplicate IPMI Override
     Execute Command         lpc WriteDoubleWord 0x00 0x20
     Execute Command         lpc WriteDoubleWord 0x08 0x02
     # Set override twice for same netFn/cmd
-    Execute Command         lpc SetIpmiOverride 0x06 0x01 "System.Array.Empty<System.Byte>()"
-    Execute Command         lpc SetIpmiOverride 0x06 0x01 "System.Array.Empty<System.Byte>()"
+    Execute Command         lpc SetIpmiOverride 0x06 0x01
+    Execute Command         lpc SetIpmiOverride 0x06 0x01
     # Should still work (latest wins)
-    Execute Command         lpc SendHostIpmiCommand 0x06 0x01 null 0
+    Execute Command         lpc SendHostIpmiCommand 0x06 0x01
     ${str}=                 Read LPC Register  0x3C
     ${obf}=                 Evaluate  ${str} & 1
     Should Be Equal As Numbers  ${obf}  1
@@ -220,6 +221,7 @@ Boot Window Invalid State Transition
     [Documentation]         Writing invalid state transitions
     [Tags]                  negative  bootwindow
     Create AST2600 Machine
+    Execute Command         machine LoadPlatformDescriptionFromString "bootwindow: Miscellaneous.Aspeed_eSPI_BootWindow @ sysbus 0x05000000"
     # Write CONSUMED without going through READY
     Execute Command         sysbus WriteDoubleWord 0x05000004 ${STATE_CONSUMED}
     ${state}=               Read Memory Word  0x05000004

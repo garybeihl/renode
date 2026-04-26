@@ -30,6 +30,8 @@ Create Birchstream Machine
     Execute Command     mach create "ast2600"
     Execute Command     machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
     Execute Command     lpc SetupBirchstreamDefaults
+    # Register boot window peripheral
+    Execute Command     machine LoadPlatformDescriptionFromString "bootwindow: Miscellaneous.Aspeed_eSPI_BootWindow @ sysbus 0x05000000"
     # Enable KCS channel 1
     Execute Command     lpc WriteDoubleWord 0x00 0x20
     Execute Command     lpc WriteDoubleWord 0x08 0x02
@@ -61,17 +63,17 @@ Read Memory Word
 Phase KCS Discovery
     [Documentation]     Replay Birchstream KCS boot discovery sequence
     # Get Device ID (netFn=0x06, cmd=0x01)
-    Execute Command     lpc SendHostIpmiCommand 0x06 0x01 null 0
+    Execute Command     lpc SendHostIpmiCommand 0x06 0x01
     ${str}=             Read LPC Register  0x3C
     ${obf}=             Evaluate  ${str} & 1
     Should Be Equal As Numbers  ${obf}  1
     # Get Boot Options (netFn=0x08, cmd=0x09)
-    Execute Command     lpc SendHostIpmiCommand 0x08 0x09 null 0
+    Execute Command     lpc SendHostIpmiCommand 0x08 0x09
     ${str2}=            Read LPC Register  0x3C
     ${obf2}=            Evaluate  ${str2} & 1
     Should Be Equal As Numbers  ${obf2}  1
     # Set Boot Options for eSPI SAF (netFn=0x08, cmd=0x05)
-    Execute Command     lpc SendHostIpmiCommand 0x08 0x05 null 0
+    Execute Command     lpc SendHostIpmiCommand 0x08 0x05
     ${str3}=            Read LPC Register  0x3C
     ${obf3}=            Evaluate  ${str3} & 1
     Should Be Equal As Numbers  ${obf3}  1

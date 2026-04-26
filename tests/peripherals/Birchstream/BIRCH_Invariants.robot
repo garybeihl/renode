@@ -84,9 +84,12 @@ XDMA Multi Descriptor Sets DS_COMP Once
         ${dst}=             Evaluate  0x80001000 + ${i} * 8
         Write Memory Word   ${src}  ${i}
         Write Memory Word   ${base}      ${src}
-        Write Memory Word   ${base}+4    ${dst}
-        Write Memory Word   ${base}+8    0x8
-        Write Memory Word   ${base}+12   0x0
+        ${base4}=          Evaluate  ${base} + 4
+        ${base8}=          Evaluate  ${base} + 8
+        ${base12}=         Evaluate  ${base} + 12
+        Write Memory Word   ${base4}     ${dst}
+        Write Memory Word   ${base8}     0x8
+        Write Memory Word   ${base12}    0x0
     END
     Write XDMA Register    ${CMDQ_WRP}  0x4
     ${status}=              Read XDMA Register  ${STATUS}
@@ -101,16 +104,19 @@ XDMA Max Queue Depth
     Create AST2600 Machine
     # Queue size = 16 descriptors
     Write XDMA Register    ${CMDQ_ADDR}  ${SRAM_BASE}
-    Write XDMA Register    ${CMDQ_ENDP}  0x10
+    Write XDMA Register    ${CMDQ_ENDP}  0x100
     Write XDMA Register    ${CMDQ_RDP}   0x0
     Write XDMA Register    ${CTRL}       ${STATUS_DS_COMP}
     # Fill all 16 slots with valid descriptors
     FOR  ${i}  IN RANGE  16
         ${base}=            Evaluate  0x10000000 + ${i} * 16
         Write Memory Word   ${base}      0x20000000
-        Write Memory Word   ${base}+4    0x80001000
-        Write Memory Word   ${base}+8    0x8
-        Write Memory Word   ${base}+12   0x0
+        ${base4}=          Evaluate  ${base} + 4
+        ${base8}=          Evaluate  ${base} + 8
+        ${base12}=         Evaluate  ${base} + 12
+        Write Memory Word   ${base4}     0x80001000
+        Write Memory Word   ${base8}     0x8
+        Write Memory Word   ${base12}    0x0
     END
     Write XDMA Register    ${CMDQ_WRP}  0x10
     # Must complete (not hang)
@@ -141,10 +147,10 @@ Cold Reset Preserves Flash Contents
     [Documentation]         INV-3: Flash data survives cold reset
     [Tags]                  invariant  reset  persistent
     Create AST2600 Machine
-    Write Memory Word       0x20000000  0xFLASHDAT
+    Write Memory Word       0x20000000  0xF1A54DA7
     Execute Command         espi ColdReset
     ${val}=                 Read Memory Word  0x20000000
-    Should Be Equal As Numbers  ${val}  0xFLASHDAT
+    Should Be Equal As Numbers  ${val}  0xF1A54DA7
 
 XDMA Status Cleared After Cold Reset
     [Documentation]         INV-3: XDMA completion status cleared by cold reset
@@ -170,7 +176,7 @@ IPMI Overrides Survive Reset
     Execute Command         lpc WriteDoubleWord 0x08 0x02
     Execute Command         espi ColdReset
     # Override should still work
-    Execute Command         lpc SendHostIpmiCommand 0x06 0x01 null 0
+    Execute Command         lpc SendHostIpmiCommand 0x06 0x01
     ${str}=  Execute Command    lpc ReadDoubleWord 0x3C
     ${obf}=                 Evaluate  int(${str.strip()}) & 1
     Should Be Equal As Numbers  ${obf}  1
@@ -181,7 +187,9 @@ Boot Window Empty To Ready Monotonic
     [Documentation]         INV-4: EMPTY -> FILLING -> READY is forward-only
     [Tags]                  invariant  bootwindow  monotonic
     Create AST2600 Machine
-    ${initial}=             Read Memory Word  0x05000000
+    Execute Command         machine LoadPlatformDescriptionFromString "bootwindow: Miscellaneous.Aspeed_eSPI_BootWindow @ sysbus 0x05000000"
+    # Boot window has magic at reset, state=EMPTY at offset 0x04
+    ${initial}=             Read Memory Word  0x05000004
     Should Be Equal As Numbers  ${initial}  0x0
     # Set to FILLING
     Write Memory Word       0x05000004  1
