@@ -11,6 +11,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.UART;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Integrations
 {
@@ -20,6 +21,25 @@ namespace Antmicro.Renode.Integrations
             string name, string scenarioPath = null)
         {
             emulation.ExternalsManager.AddExternal(new PldmFirmwareDevice(scenarioPath), name);
+        }
+
+        public static void ConnectPldmToEspi(this Emulation emulation,
+            string pldmName, Antmicro.Renode.Peripherals.Miscellaneous.Aspeed_eSPI espi)
+        {
+            IExternal ext;
+            if(!emulation.ExternalsManager.TryGetByName(pldmName, out ext))
+            {
+                throw new Antmicro.Renode.Exceptions.RecoverableException(
+                    string.Format("PLDM device '{0}' not found", pldmName));
+            }
+            var pldm = ext as PldmFirmwareDevice;
+            if(pldm == null)
+            {
+                throw new Antmicro.Renode.Exceptions.RecoverableException(
+                    string.Format("'{0}' is not a PldmFirmwareDevice", pldmName));
+            }
+            pldm.AttachToEspiOob(data => espi.InjectOobMctp(data));
+            espi.ConnectOobHandler(data => pldm.ReceiveOobPacket(data));
         }
     }
 
@@ -32,7 +52,8 @@ namespace Antmicro.Renode.Integrations
     public class PldmFirmwareDevice : BackendTerminal, IDisposable
     {
         private readonly ScenarioConfig config;
-        private readonly MctpSerialTransport transport;
+        private IMctpTransport transport;
+        private MctpSerialTransport serialTransport;
         private readonly PldmFirmwareUpdateHandler fwupHandler;
         private readonly PldmPlatformHandler platformHandler;
 
@@ -58,7 +79,9 @@ namespace Antmicro.Renode.Integrations
                 this.Log(LogLevel.Info, "PldmFirmwareDevice: using default scenario");
             }
 
-            transport = new MctpSerialTransport(this, OnFrameReceived, SendByteToUart);
+            serialTransport = new MctpSerialTransport(this, OnFrameReceived, SendByteToUart);
+            transport = serialTransport;
+            transportIsSerial = true;
             fwupHandler = new PldmFirmwareUpdateHandler(config, this);
             if(config.PlatformEnabled)
             {
@@ -91,7 +114,7 @@ namespace Antmicro.Renode.Integrations
             {
                 this.Log(LogLevel.Debug, "WriteChar: byte #{0} = 0x{1:X2}", byteCount, value);
             }
-            transport.ProcessByte(value);
+            serialTransport.ProcessByte(value);
         }
 
         private int byteCount;
@@ -99,6 +122,27 @@ namespace Antmicro.Renode.Integrations
         public void Dispose()
         {
             transport.Reset();
+        }
+
+        private bool transportIsSerial;
+
+        public void AttachToEspiOob(Action<byte[]> sendOobPacket)
+        {
+            transport = new MctpOobTransport(this, sendOobPacket);
+            transportIsSerial = false;
+            this.Log(LogLevel.Info, "PldmFirmwareDevice: switched to eSPI OOB transport");
+        }
+
+        public void ReceiveOobPacket(byte[] data)
+        {
+            if(data == null || data.Length < 4)
+            {
+                this.Log(LogLevel.Warning, "PldmFirmwareDevice: OOB packet too short ({0} bytes)",
+                    data != null ? data.Length : 0);
+                return;
+            }
+            this.Log(LogLevel.Debug, "PldmFirmwareDevice: OOB RX {0} bytes", data.Length);
+            OnFrameReceived(data);
         }
 
         // Send a byte to the guest UART (us → guest)

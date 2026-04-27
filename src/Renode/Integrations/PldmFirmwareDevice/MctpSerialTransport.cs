@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Integrations
     // MCTP serial transport binding (DSP0238)
     // Frame format: [0x7E][version][length][escaped data][FCS_hi][FCS_lo][0x7E]
     // Byte stuffing: 0x7E → 0x7D 0x5E, 0x7D → 0x7D 0x5D (data portion only)
-    public class MctpSerialTransport
+    public class MctpSerialTransport : IMctpTransport
     {
         public const byte FrameFlag = 0x7E;
         public const byte EscapeByte = 0x7D;
