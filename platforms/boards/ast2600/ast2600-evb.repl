@@ -148,3 +148,22 @@ eth3: Network.Aspeed_FTGMAC100 @ sysbus 0x1E670000
 
 eth4: Network.Aspeed_FTGMAC100 @ sysbus 0x1E690000
     IRQ -> gic@33
+
+
+i3c0: I3C.Aspeed_I3C @ sysbus 0x1E7A0000
+    IRQ -> gic@102
+
+i3c1: I3C.Aspeed_I3C @ sysbus 0x1E7A2000
+    IRQ -> gic@103
+
+i3c2: I3C.Aspeed_I3C @ sysbus 0x1E7A4000
+    IRQ -> gic@104
+
+i3c3: I3C.Aspeed_I3C @ sysbus 0x1E7A6000
+    IRQ -> gic@105
+
+i3c4: I3C.Aspeed_I3C @ sysbus 0x1E7A8000
+    IRQ -> gic@106
+
+i3c5: I3C.Aspeed_I3C @ sysbus 0x1E7AA000
+    IRQ -> gic@107
