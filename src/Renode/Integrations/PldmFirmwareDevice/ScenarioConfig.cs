@@ -40,6 +40,13 @@ namespace Antmicro.Renode.Integrations
     public class ScenarioConfig
     {
         public byte Eid = 20;
+        // Runtime EID - updated by SetEID command, defaults to static Eid
+        private byte? runtimeEid;
+        public byte RuntimeEid
+        {
+            get { return runtimeEid ?? Eid; }
+            set { runtimeEid = value; }
+        }
         public byte Tid = 1;
         public byte[] Uuid = { 0x16, 0x20, 0x23, 0xC9, 0x3E, 0xC5, 0x41, 0x15,
                                 0x95, 0xF4, 0x48, 0x70, 0x1D, 0x49, 0xD6, 0x75 };

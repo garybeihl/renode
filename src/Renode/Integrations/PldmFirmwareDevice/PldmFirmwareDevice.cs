@@ -89,7 +89,7 @@ namespace Antmicro.Renode.Integrations
             }
 
             this.Log(LogLevel.Info, "PldmFirmwareDevice: EID={0}, TID={1}, components={2}",
-                config.Eid, config.Tid, config.Components.Count);
+                config.RuntimeEid, config.Tid, config.Components.Count);
         }
 
         public override void AttachTo(IUART uart)
@@ -177,6 +177,13 @@ namespace Antmicro.Renode.Integrations
 
             if(som && eom)
             {
+                // Validate destination EID: accept own EID, null (0x00), or broadcast (0xFF)
+                if(packet.DestEid != config.RuntimeEid && packet.DestEid != 0x00 && packet.DestEid != 0xFF)
+                {
+                    this.Log(LogLevel.Debug, "PldmFirmwareDevice: dropping packet for EID {0} (my EID is {1})",
+                        packet.DestEid, config.RuntimeEid);
+                    return;
+                }
                 // Single-packet message — most common case
                 this.Log(LogLevel.Debug, "PldmFirmwareDevice: received MCTP packet: dest={0}, src={1}, type={2}, len={3}",
                     packet.DestEid, packet.SrcEid, packet.MessageType, packet.Payload != null ? packet.Payload.Length : 0);
@@ -318,7 +325,7 @@ namespace Antmicro.Renode.Integrations
 
         private void SendMctpResponse(MctpPacket request, byte messageType, byte[] payload)
         {
-            var response = MctpPacket.BuildResponse(request, config.Eid, messageType, payload);
+            var response = MctpPacket.BuildResponse(request, config.RuntimeEid, messageType, payload);
             var frameData = response.Build();
             transport.SendFrame(frameData);
         }
@@ -332,7 +339,7 @@ namespace Antmicro.Renode.Integrations
             }
 
             byte destEid = uaEid != 0 ? uaEid : (byte)8; // default BMC EID
-            var packet = MctpPacket.BuildFdRequest(destEid, config.Eid, fdTag, MctpPacket.MessageTypePldm, fdRequest);
+            var packet = MctpPacket.BuildFdRequest(destEid, config.RuntimeEid, fdTag, MctpPacket.MessageTypePldm, fdRequest);
             fdTag = (byte)((fdTag + 1) & MctpPacket.TagMask);
 
             var frameData = packet.Build();
