@@ -775,3 +775,37 @@ three addresses (0x0, 0x60000000, 0x88000000).
 Ensure `nosmp maxcpus=1` is in bootargs. The second CPU (cpu1) is halted but
 its dirty address list can grow unbounded, causing OOM. The Machine.cs fix
 skips halted CPUs during dirty address broadcast.
+
+### Robot tests fail with "Required state booted-state not found"
+The u-boot autoboot interrupt failed. The old approach (`Wait For Line On Uart
+autoboot` then `Write Line To Uart`) is timing-dependent — by the time the
+terminal tester returns from the wait and sends the keypress, the 2-second
+countdown may have already expired.
+
+**Fix:** Use a CR spam loop instead. This sends CR every 0.5 virtual seconds
+throughout u-boot init, guaranteeing at least one keypress during the
+countdown window:
+
+```robot
+FOR    ${i}    IN RANGE    20
+    Execute Command    emulation RunFor "0.5"
+    Execute Command    uart5 WriteChar 0xD
+END
+Wait For Line On Uart    ast#    timeout=30    includeUnfinishedLine=true
+```
+
+This matches the `.resc` script pattern and is reliable across different
+u-boot versions and boot timing variations. Applied to both
+`ASPEED_SPDM_Attestation.robot` and `ASPEED_PLDM_FirmwareUpdate.robot`.
+
+### Multi-endpoint Robot tests fail (ATTEST_CNT, SKIP_PASS)
+The `evb-ast2600-renode` machine config must enable all UARTs used by the
+tests. Single-endpoint tests use uart1 (/dev/ttyS0). Multi-endpoint tests
+also use uart2 (/dev/ttyS1). If a UART is not enabled in the device tree,
+the kernel registers it as `uart:unknown` and `/dev/ttySN` returns I/O errors.
+
+The `aspeed-ast2600-evb-renode.dts` enables both:
+```dts
+&uart1 { status = "okay"; };
+&uart2 { status = "okay"; };
+```

@@ -23,6 +23,7 @@ ${DEFAULT_SCENARIO}         ${CURDIR}/../../../../pldm-sim/scenarios/gpu-terminu
 ${REJECT_SCENARIO}          ${CURDIR}/../../../../pldm-sim/scenarios/reject-update.json
 ${VERIFY_FAIL_SCENARIO}     ${CURDIR}/../../../../pldm-sim/scenarios/verify-failure-renode.json
 ${MALFORMED_SCENARIO}       ${CURDIR}/../../../../pldm-sim/scenarios/malformed-update-component.json
+${MALICIOUS_SCENARIO}       ${CURDIR}/../../../../pldm-sim/scenarios/malicious-fake-completion.json
 
 *** Keywords ***
 Create Base Machine
@@ -79,6 +80,15 @@ Boot And Login
     Wait For Line On Uart    Password:    timeout=60    includeUnfinishedLine=true
     Write Line To Uart    0penBmc    waitForEcho=false
     Wait For Line On Uart    root@    timeout=60    includeUnfinishedLine=true
+    # Widen the kernel TTY column count so soft-wrap doesn't insert spurious
+    # [CR] + duplicate-char at column 80 when echoing long input lines (busctl,
+    # journalctl|grep, curl). The default 80-column wrap is what made test
+    # captures look like "TrransferComplete" / "AssignEnndpointStatic" — the
+    # kernel echoed `<char>[CR]<char>` to handle line wrap, and TerminalTester
+    # drops the CR (TreatLineFeedAsEndLine), leaving the duplicate char in the
+    # captured line buffer. With cols=1000, no test line wraps. Clean echoes.
+    Write Line To Uart    stty cols 1000    waitForEcho=false
+    Pause And Run For    2
 
 Configure MCTP
     [Documentation]    Set up MCTP serial link, address, route, and endpoint
@@ -125,8 +135,23 @@ Transfer Firmware Package
     Wait For Line On Uart    ${total}    timeout=30    includeUnfinishedLine=true
 
 Trigger Firmware Update
-    [Documentation]    Trigger firmware update via D-Bus StartUpdate call
-    Write Line To Uart    exec 5</tmp/test_fw_pkg.pldm && busctl call xyz.openbmc_project.PLDM /xyz/openbmc_project/software/pldm xyz.openbmc_project.Software.Update StartUpdate hs 5 xyz.openbmc_project.Software.ApplyTime.RequestedApplyTimes.Immediate && exec 5<&-    waitForEcho=false
+    [Documentation]    Trigger firmware update via D-Bus StartUpdate call.
+    ...                pldmd's UpdateManager throws xyz.openbmc_project.Common.Error.Unavailable
+    ...                ("The service is temporarily unavailable") if its descriptorMap
+    ...                is still empty when StartUpdate is invoked — i.e. when MCTP
+    ...                endpoint discovery hasn't yet populated. Discovery timing is
+    ...                variable per FD scenario, so we retry up to 5 times with a
+    ...                15-second virtual-time gap between attempts.
+    FOR    ${attempt}    IN RANGE    5
+        Write Line To Uart    exec 5</tmp/test_fw_pkg.pldm && busctl call xyz.openbmc_project.PLDM /xyz/openbmc_project/software/pldm xyz.openbmc_project.Software.Update StartUpdate hs 5 xyz.openbmc_project.Software.ApplyTime.RequestedApplyTimes.Immediate && echo "STARTUPDATE_OK_${attempt}" || echo "STARTUPDATE_FAIL_${attempt}"; exec 5<&-    waitForEcho=false
+        Pause And Run For    10
+        ${started}=    Run Keyword And Return Status    Wait For Line On Uart    STARTUPDATE_OK_${attempt}    timeout=20    includeUnfinishedLine=true
+        Exit For Loop If    ${started}
+        # On Unavailable, pldmd is mid-discovery — give it more virtual time to populate descriptorMap
+        Pause And Run For    15
+    END
+    Should Be True    ${started}    StartUpdate D-Bus call kept returning Unavailable across 5 retries (pldmd never finished MCTP endpoint discovery, descriptorMap stayed empty)
+    # Now wait for the actual update protocol to play out
     Pause And Run For    120
 
 Assert Journal Contains
@@ -211,4 +236,29 @@ Should Handle Malformed Update Component Response
     # UpdateManager to log the failure and transition to Failed state
     Assert Journal Contains    update failed on eid    COMPLETION_NOTIFIED
     # The update must not incorrectly report success
+    Assert Journal Does Not Contain    Firmware update time    FW_TIME
+
+Should Block Malicious Fake Completion Chain
+    [Documentation]    Reproduces the openbmc-security disclosure attack: a
+    ...                malicious FD answers UpdateComponent then immediately
+    ...                sends TransferComplete(success) without ever pulling
+    ...                firmware data. The FD's state machine then chains
+    ...                VerifyComplete and ApplyComplete on each ack. Patched
+    ...                pldmd must reject TransferComplete on the bytes-served
+    ...                check (DSP0267 §12.7) and the subsequent VerifyComplete
+    ...                / ApplyComplete on the phase check (§12.8 / §12.9), and
+    ...                must NOT report the update as successful.
+    [Tags]             pldm    phase-tracking    security
+    Requires           booted-state
+    Attach PLDM Device    ${MALICIOUS_SCENARIO}
+    Configure MCTP
+    Start Pldmd
+    Transfer Firmware Package
+    Trigger Firmware Update
+    # Bytes-served check must fire on the stale TransferComplete(success)
+    Assert Journal Contains    Rejecting TransferComplete    PHASE_BYTES
+    # updateDeviceCompletion(eid, false) must be called via the bytes-served
+    # rejection path, marking the device as failed
+    Assert Journal Contains    update failed on eid    COMPLETION_NOTIFIED
+    # The update must NOT incorrectly report success
     Assert Journal Does Not Contain    Firmware update time    FW_TIME
