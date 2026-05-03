@@ -274,9 +274,20 @@ namespace Antmicro.Renode.Integrations
 
         private void SendMctpResponse(MctpPacket request, byte messageType, byte[] payload)
         {
-            var response = MctpPacket.BuildResponse(request, config.Eid, messageType, payload);
-            var frameData = response.Build();
-            transport.SendFrame(frameData);
+            // Fragment if the response exceeds the serial link MTU. The Linux
+            // kernel's mctp_serial driver hard-caps mctpserial0's MTU at 68
+            // bytes (cannot be raised), so any PLDM response larger than ~63
+            // bytes (e.g. multi-component GetFirmwareParameters per DSP0267
+            // §6.5.6) must be split across multiple MCTP packets carrying
+            // SOM / EOM / sequence-number flags per DSP0236 §8.2.4.
+            // Response: same tag as request, TO cleared.
+            var fragments = MctpPacket.Fragment(
+                request.SrcEid, config.Eid, request.Tag, /*tagOwner=*/false,
+                messageType, payload);
+            foreach(var pkt in fragments)
+            {
+                transport.SendFrame(pkt.Build());
+            }
         }
 
         private void SendPendingFdRequest()
@@ -288,14 +299,21 @@ namespace Antmicro.Renode.Integrations
             }
 
             byte destEid = uaEid != 0 ? uaEid : (byte)8; // default BMC EID
-            var packet = MctpPacket.BuildFdRequest(destEid, config.Eid, fdTag, MctpPacket.MessageTypePldm, fdRequest);
+            // Fragment FD-initiated requests too — most are short (RequestFirmwareData
+            // ~11 bytes, TransferComplete ~4 bytes) so this is a no-op single packet
+            // for them, but keeps a uniform send path.
+            var fragments = MctpPacket.Fragment(
+                destEid, config.Eid, fdTag, /*tagOwner=*/true,
+                MctpPacket.MessageTypePldm, fdRequest);
             fdTag = (byte)((fdTag + 1) & MctpPacket.TagMask);
 
-            var frameData = packet.Build();
-            transport.SendFrame(frameData);
+            foreach(var pkt in fragments)
+            {
+                transport.SendFrame(pkt.Build());
+            }
 
-            this.Log(LogLevel.Debug, "PldmFirmwareDevice: sent FD-initiated request (cmd=0x{0:X2})",
-                fdRequest.Length >= 3 ? fdRequest[2] : 0);
+            this.Log(LogLevel.Debug, "PldmFirmwareDevice: sent FD-initiated request (cmd=0x{0:X2}, {1} fragment(s))",
+                fdRequest.Length >= 3 ? fdRequest[2] : 0, fragments.Count);
         }
 
         private static byte[] BuildPldmTypeError(byte[] request)
