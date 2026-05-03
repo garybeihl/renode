@@ -1,14 +1,23 @@
 mach create "ast2600"
 machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
+
+# Create user-mode network with DHCP (gateway 10.0.2.2, guest 10.0.2.15)
 emulation CreateNetworkServer "net" "10.0.2.2"
 net StartDHCP "10.0.2.15"
+
+# Port forward: host 2443 → guest 443 (HTTPS/bmcweb)
 net AddPortForward "127.0.0.1" 2443 "10.0.2.15" 443
+
+# Create virtual switch and connect network + guest eth1
 emulation CreateSwitch "switch"
 connector Connect net switch
 connector Connect sysbus.eth1 switch
+
+# Load firmware
 sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
 sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x60000000
 sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x88000000
+
 sysbus SilenceRange <0x1E630000 0xC4>
 sysbus SilenceRange <0x30000000 0x10000000>
 sysbus SilenceRange <0x1E631000 0xC4>
@@ -18,8 +27,11 @@ sysbus SilenceRange <0x1E750000 0x10000>
 sysbus SilenceRange <0x1E6A0000 0x1000>
 sysbus SilenceRange <0x1E6A3000 0x1000>
 sysbus SilenceRange <0x1E700000 0x1000>
+
 logLevel 2
-uart5 CreateFileBackend @/tmp/openbmc-net-test.txt true
+uart5 CreateFileBackend @/tmp/openbmc-net-diag.txt true
+
+# Autoboot interrupt
 emulation RunFor "0.5"
 uart5 WriteChar 0xD
 emulation RunFor "0.5"
@@ -60,28 +72,80 @@ emulation RunFor "0.5"
 uart5 WriteChar 0xD
 emulation RunFor "0.5"
 uart5 WriteChar 0xD
+
 uart5 WriteLine "setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8 nosmp maxcpus=1 panic=-1"
 emulation RunFor "1"
 uart5 WriteLine "bootm 88100000"
-emulation RunFor "240"
+
+# Wait for full boot
+emulation RunFor "200"
+
+# Login
 uart5 WriteLine ""
-emulation RunFor "3"
-uart5 WriteLine ""
-emulation RunFor "3"
-uart5 WriteLine "root"
-emulation RunFor "10"
-uart5 WriteLine "0penBmc"
-emulation RunFor "15"
-uart5 WriteLine "cat /sys/class/net/eth0/carrier"
-emulation RunFor "3"
-uart5 WriteLine "cat /sys/class/net/eth0/operstate"
-emulation RunFor "3"
-uart5 WriteLine "ip link show eth0"
-emulation RunFor "3"
-uart5 WriteLine "ip addr show eth0"
-emulation RunFor "3"
-uart5 WriteLine "ip route show"
-emulation RunFor "3"
-uart5 WriteLine "echo NET_TEST_DONE"
 emulation RunFor "2"
+uart5 WriteLine "root"
+emulation RunFor "5"
+uart5 WriteLine "0penBmc"
+emulation RunFor "10"
+
+# Diagnostic: check PHY/link status from dmesg
+uart5 WriteLine "echo '=== DMESG PHY/LINK/MDIO ==='"
+emulation RunFor "1"
+uart5 WriteLine "dmesg | grep -iE 'ftgmac|phy|mdio|link|carrier|eth0' | head -n 40"
+emulation RunFor "5"
+
+# Check interface state
+uart5 WriteLine "echo '=== IP LINK SHOW ==='"
+emulation RunFor "1"
+uart5 WriteLine "ip link show eth0"
+emulation RunFor "2"
+
+# Check PHY state via sysfs
+uart5 WriteLine "echo '=== PHY STATE ==='"
+emulation RunFor "1"
+uart5 WriteLine "cat /sys/class/net/eth0/carrier 2>&1"
+emulation RunFor "1"
+uart5 WriteLine "cat /sys/class/net/eth0/operstate 2>&1"
+emulation RunFor "1"
+uart5 WriteLine "ls /sys/class/net/eth0/phydev/ 2>&1 | head -n 5"
+emulation RunFor "2"
+
+# Bring interface up and configure
+uart5 WriteLine "echo '=== CONFIGURING NETWORK ==='"
+emulation RunFor "1"
+uart5 WriteLine "ip link set eth0 up"
+emulation RunFor "5"
+uart5 WriteLine "ip addr add 10.0.2.15/24 dev eth0 2>/dev/null || true"
+emulation RunFor "2"
+uart5 WriteLine "ip route add default via 10.0.2.2 2>/dev/null || true"
+emulation RunFor "2"
+
+# Wait for phylib to detect link (give it more time)
+uart5 WriteLine "echo '=== WAITING 30s FOR PHYLIB ==='"
+emulation RunFor "30"
+
+# Re-check carrier state after waiting
+uart5 WriteLine "echo '=== POST-WAIT STATUS ==='"
+emulation RunFor "1"
+uart5 WriteLine "ip link show eth0"
+emulation RunFor "2"
+uart5 WriteLine "cat /sys/class/net/eth0/carrier"
+emulation RunFor "1"
+uart5 WriteLine "cat /sys/class/net/eth0/operstate"
+emulation RunFor "2"
+
+# Check dmesg for any new PHY messages
+uart5 WriteLine "dmesg | tail -n 20"
+emulation RunFor "5"
+
+# Try ARP regardless
+uart5 WriteLine "echo '=== ARP TABLE ==='"
+emulation RunFor "1"
+uart5 WriteLine "cat /proc/net/arp"
+emulation RunFor "2"
+
+uart5 WriteLine "echo '=== DIAG COMPLETE ==='"
+emulation RunFor "2"
+
+# Start continuous execution
 start

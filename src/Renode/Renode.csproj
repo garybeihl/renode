@@ -143,7 +143,13 @@
     <Compile Include="Network\ExternalControl\ExternalControlServer.cs" />
     <Compile Include="Network\NetworkServer\NetworkServer.cs" />
     <Compile Include="Network\NetworkServer\IServerModule.cs" />
+    <Compile Include="Network\NetworkServer\TcpConnection.cs" />
+    <Compile Include="Network\NetworkServer\PortForwarder.cs" />
+    <Compile Include="Network\NetworkServer\NatProxy.cs" />
+    <Compile Include="Network\NetworkServer\UserNetworkExtensions.cs" />
     <Compile Include="Network\NetworkServer\Modules\TftpServerModule.cs" />
+    <Compile Include="Network\NetworkServer\Modules\DhcpServerModule.cs" />
+    <Compile Include="Network\NetworkServer\Modules\DnsServerModule.cs" />
     <Compile Include="Integrations\ArduinoLoader.cs" />
     <Compile Include="Integrations\AsciinemaRecorder.cs" />
     <Compile Include="Integrations\PldmFirmwareDevice\PldmFirmwareDevice.cs" />

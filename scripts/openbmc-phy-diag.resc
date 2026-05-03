@@ -1,14 +1,18 @@
 mach create "ast2600"
 machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
+
 emulation CreateNetworkServer "net" "10.0.2.2"
 net StartDHCP "10.0.2.15"
 net AddPortForward "127.0.0.1" 2443 "10.0.2.15" 443
+
 emulation CreateSwitch "switch"
 connector Connect net switch
 connector Connect sysbus.eth1 switch
+
 sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
 sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x60000000
 sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x88000000
+
 sysbus SilenceRange <0x1E630000 0xC4>
 sysbus SilenceRange <0x30000000 0x10000000>
 sysbus SilenceRange <0x1E631000 0xC4>
@@ -18,8 +22,10 @@ sysbus SilenceRange <0x1E750000 0x10000>
 sysbus SilenceRange <0x1E6A0000 0x1000>
 sysbus SilenceRange <0x1E6A3000 0x1000>
 sysbus SilenceRange <0x1E700000 0x1000>
+
 logLevel 2
-uart5 CreateFileBackend @/tmp/openbmc-net-test.txt true
+uart5 CreateFileBackend @/tmp/openbmc-phy-diag.txt true
+
 emulation RunFor "0.5"
 uart5 WriteChar 0xD
 emulation RunFor "0.5"
@@ -60,28 +66,30 @@ emulation RunFor "0.5"
 uart5 WriteChar 0xD
 emulation RunFor "0.5"
 uart5 WriteChar 0xD
+
 uart5 WriteLine "setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8 nosmp maxcpus=1 panic=-1"
 emulation RunFor "1"
 uart5 WriteLine "bootm 88100000"
-emulation RunFor "240"
+emulation RunFor "200"
+
 uart5 WriteLine ""
-emulation RunFor "3"
-uart5 WriteLine ""
-emulation RunFor "3"
-uart5 WriteLine "root"
-emulation RunFor "10"
-uart5 WriteLine "0penBmc"
-emulation RunFor "15"
-uart5 WriteLine "cat /sys/class/net/eth0/carrier"
-emulation RunFor "3"
-uart5 WriteLine "cat /sys/class/net/eth0/operstate"
-emulation RunFor "3"
-uart5 WriteLine "ip link show eth0"
-emulation RunFor "3"
-uart5 WriteLine "ip addr show eth0"
-emulation RunFor "3"
-uart5 WriteLine "ip route show"
-emulation RunFor "3"
-uart5 WriteLine "echo NET_TEST_DONE"
 emulation RunFor "2"
-start
+uart5 WriteLine "root"
+emulation RunFor "5"
+uart5 WriteLine "0penBmc"
+emulation RunFor "10"
+
+# Key diagnostics: MDIO bus, PHY devices, netdev->phydev link
+uart5 WriteLine "ls /sys/bus/mdio_bus/devices/"
+emulation RunFor "2"
+uart5 WriteLine "for d in /sys/bus/mdio_bus/devices/*/; do echo \"$d: phy_id=$(cat $d/phy_id 2>/dev/null) driver=$(basename $(readlink $d/driver 2>/dev/null) 2>/dev/null)\"; done"
+emulation RunFor "3"
+uart5 WriteLine "ls -la /sys/class/net/eth0/device/driver 2>&1"
+emulation RunFor "2"
+uart5 WriteLine "ls /sys/class/net/eth0/phydev 2>&1"
+emulation RunFor "2"
+uart5 WriteLine "dmesg | grep -iE 'phy|mdio|failed|error|connect' | head -n 30"
+emulation RunFor "5"
+uart5 WriteLine "echo DIAG_DONE"
+emulation RunFor "2"
+quit

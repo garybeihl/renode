@@ -809,3 +809,163 @@ The `aspeed-ast2600-evb-renode.dts` enables both:
 &uart1 { status = "okay"; };
 &uart2 { status = "okay"; };
 ```
+
+---
+
+## Renode User-Mode Networking (SLiRP-like)
+
+Renode includes a built-in user-mode network stack (NetworkServer) that provides
+DHCP, ARP, ICMP, and TCP without requiring host TAP devices or sudo. This is
+analogous to QEMU's SLiRP networking. Port forwarding bridges host TCP sockets
+to guest TCP connections through the emulated network.
+
+### Architecture
+
+```
+Host                              Renode                           Guest (OpenBMC)
+────                              ──────                           ─────
+curl/RSV                     NetworkServer (10.0.2.2)          bmcweb (:443)
+  │                            ├── ARP responder                   │
+  │  TCP to 127.0.0.1:2443    ├── DHCP server (10.0.2.15)        │
+  └──────────────────────────► ├── ICMP echo                      │
+     PortForwarder             ├── TCP state machine               │
+     (host socket ↔            └── PortForwarder                   │
+      TcpConnection)                │                              │
+                                    │  Ethernet frames via Switch  │
+                                    └──────────────────────────────┘
+                                         FTGMAC100 (eth1 in .repl = eth0 in Linux)
+```
+
+### Quick Start
+
+```bash
+cd ~/claude/renode
+PATH="$HOME/.dotnet:$PATH" DOTNET_ROOT="$HOME/.dotnet" \
+  dotnet output/bin/Release/Renode.dll --disable-xwt --plain \
+  --execute "include @scripts/openbmc-rsv-test.resc"
+```
+
+After boot (~4-5 minutes real time), the emulation enters continuous execution.
+From another terminal:
+
+```bash
+# Verify Redfish is reachable
+curl -sk -u root:0penBmc https://127.0.0.1:2443/redfish/v1/
+```
+
+### .resc Script Setup
+
+The `openbmc-rsv-test.resc` script configures networking:
+
+```
+# Create user-mode network gateway at 10.0.2.2
+emulation CreateNetworkServer "net" "10.0.2.2"
+net StartDHCP "10.0.2.15"
+
+# Forward host port 2443 to guest port 443 (bmcweb HTTPS)
+net AddPortForward "127.0.0.1" 2443 "10.0.2.15" 443
+
+# Connect via a virtual switch
+emulation CreateSwitch "switch"
+connector Connect net switch
+connector Connect sysbus.eth1 switch
+```
+
+Key points:
+- `sysbus.eth1` is the Renode peripheral name for MAC0 at 0x1E660000 (Linux's
+  `eth0`). The `.repl` names MACs as eth1-eth4.
+- The NetworkServer handles ARP, DHCP, ICMP, and TCP at the IP level.
+- Port forwarding creates real host TCP listeners that bridge to emulated TCP
+  connections through the NetworkServer's TCP state machine.
+- No sudo required — all networking is in-process.
+
+### How Link Detection Works
+
+The AST2600 EVB device tree configures `mac0` with an RTL8211F PHY on external
+`mdio0`. The Linux `ftgmac100` driver uses `phylib` to poll the PHY's BMSR and
+PHYSR registers for link status. The `Aspeed_MDIO` emulation provides:
+
+- **BMSR** (register 1): Always returns link up + auto-negotiation complete
+- **PHYSR** (page 0xa43, register 0x12): Returns `0x2C` = 1Gbps, full-duplex,
+  link up. The speed field uses bits [5:4] where `10` = 1000Mbps.
+
+The kernel sees `Link is Up - 1Gbps/Full` at boot and `systemd-networkd`
+configures eth0 via DHCP from the NetworkServer.
+
+**Bug history**: The original PHYSR value was `0x3C` (bits [5:4] = `11`) which
+doesn't match any speed case in the RTL8211F driver's `rtlgen_decode_physr()`.
+This left `phydev->speed = 0`, causing `ftgmac100_adjust_link()` to report no
+link and `netif_carrier_off()` to persist. Fixed by changing to `0x2C`.
+
+### Adding More Port Forwards
+
+```
+# Forward host 8080 to guest 80 (HTTP)
+net AddPortForward "127.0.0.1" 8080 "10.0.2.15" 80
+
+# Forward host 2222 to guest 22 (SSH — if dropbear is running)
+net AddPortForward "127.0.0.1" 2222 "10.0.2.15" 22
+```
+
+### Limitations
+
+- **TCP only** — UDP port forwarding is not implemented. DNS resolution from the
+  guest fails (the NetworkServer logs "Received UDP packet on port 53, but no
+  service is active").
+- **No outbound internet** — the guest cannot reach external hosts. The
+  NetworkServer only handles traffic to/from its own IP (10.0.2.2).
+- **TLS passthrough** — the PortForwarder bridges raw TCP bytes. TLS termination
+  happens in bmcweb on the guest. Use `curl -k` or `--no_cert_check` for RSV.
+
+---
+
+## Redfish Service Validator (RSV)
+
+The [DMTF Redfish Service Validator](https://github.com/DMTF/Redfish-Service-Validator)
+tests Redfish protocol conformance against the DMTF schema. With Renode
+networking, RSV can validate bmcweb running inside the emulated OpenBMC.
+
+### Install RSV
+
+```bash
+python3 -m venv ~/claude/rsv-venv
+source ~/claude/rsv-venv/bin/activate
+pip install redfish_service_validator
+```
+
+### Run RSV
+
+1. Start Renode with the networking script (see Quick Start above)
+2. Wait for boot to complete and verify Redfish responds:
+   ```bash
+   curl -sk -u root:0penBmc https://127.0.0.1:2443/redfish/v1/
+   ```
+3. Run the validator:
+   ```bash
+   source ~/claude/rsv-venv/bin/activate
+   rf_service_validator \
+     --auth Session \
+     -i https://127.0.0.1:2443 \
+     -u root -p 0penBmc \
+     --no_cert_check
+   ```
+
+### RSV Options
+
+| Option | Purpose |
+|--------|---------|
+| `--auth Session` | Use Redfish session authentication (recommended) |
+| `--auth Basic` | Use HTTP Basic auth |
+| `--no_cert_check` | Skip TLS certificate verification (self-signed) |
+| `--logdir /tmp/rsv` | Save detailed results to directory |
+| `--uri /redfish/v1/Managers/bmc` | Test a single URI instead of crawling |
+
+### Expected Results
+
+On a stock evb-ast2600 image, RSV will report some failures. These are typically:
+- Missing optional properties that the evb-ast2600 image doesn't populate
+- Schema version mismatches between bmcweb and the RSV schema bundle
+- Properties that require real hardware (sensors, FRU data)
+
+The primary value is catching regressions in bmcweb Redfish compliance during
+development.

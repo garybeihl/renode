@@ -1,0 +1,214 @@
+# SPDM TCP endpoint E2E harness.
+#
+# Purpose: drive a full TCP-transport SPDM attestation flow, BMC <->
+# host, using libspdm's spdm_responder_emu running on the host. Sister
+# to openbmc-rsv-spdm.resc (which covers the MCTP-serial flow); no
+# serial-attached SPDM mock device is attached here.
+#
+# Prerequisite on the HOST side (run BEFORE starting this script):
+#
+#   cd ~/claude/libspdm-3.8.2/src/build-host/bin
+#   # Sample certs from libspdm source
+#   ./spdm_responder_emu --trans TCP --port 2323 \
+#       --pcap /tmp/spdm-tcp.pcap &
+#
+#   (spdm_responder_emu is produced by building libspdm with
+#    -DBUILD_SPDM_EMU=1. If not already built, add the flag to the
+#    cmake configure step and `make spdm_responder_emu`.)
+#
+# The emulator listens on 0.0.0.0:2323 by default, which is reachable
+# from the Renode guest at 10.0.2.2:2323 via user-mode NAT.
+#
+# Upstream gate: this test is only meaningful once 88873 reaches CR+2
+# (SPDMResponderManager actually invokes connectSPDMDevice with the
+# transport stack wired up). Without it the TCP discovery completes
+# but no attestation fires. Runnable earlier for harness-level
+# validation only.
+#
+# Success indicators captured in /tmp/openbmc-rsv-spdm-tcp.txt:
+#   - SPDMD_TCP_OK                            (spdmd service up)
+#   - "Found SPDM TCP Responder at 10.0.2.2:2323"
+#   - "Eager attestation PASSED"              (full-stack success)
+#   - ComponentIntegrity D-Bus object present
+
+mach create "ast2600"
+machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
+
+# User-mode network: gateway 10.0.2.2, guest 10.0.2.15.  Outbound TCP
+# from BMC to 10.0.2.2:2323 is NATed to the host's loopback where
+# spdm_responder_emu is listening.
+emulation CreateNetworkServer "net" "10.0.2.2"
+net StartDHCP "10.0.2.15"
+# Inbound PF for bmcweb so curl-from-host verification still works
+net AddPortForward "127.0.0.1" 2443 "10.0.2.15" 443
+emulation CreateSwitch "switch"
+connector Connect net switch
+connector Connect sysbus.eth1 switch
+
+# NOTE: intentionally no CreateSpdmResponderDevice + uart1 wiring.
+# The SPDM responder is the host's spdm_responder_emu reached via TCP.
+
+# Load firmware (same image as MCTP variant; obmc-phosphor-image built
+# with tier-3 test-merged-chain spdm branch).
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x60000000
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x88000000
+
+sysbus SilenceRange <0x1E630000 0xC4>
+sysbus SilenceRange <0x30000000 0x10000000>
+sysbus SilenceRange <0x1E631000 0xC4>
+sysbus SilenceRange <0x50000000 0x10000000>
+sysbus SilenceRange <0x1E740000 0x10000>
+sysbus SilenceRange <0x1E750000 0x10000>
+sysbus SilenceRange <0x1E6A0000 0x1000>
+sysbus SilenceRange <0x1E6A3000 0x1000>
+sysbus SilenceRange <0x1E700000 0x1000>
+
+# Enable VFP so OpenSSL ECDSA-P256 works in spdmd
+cpu0 FpuEnabled true
+
+logLevel 2
+uart5 CreateFileBackend @/tmp/openbmc-rsv-spdm-tcp.txt true
+
+# Autoboot interrupt (tap Enter ~20 times to skip the u-boot countdown)
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+
+uart5 WriteLine "setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8 nosmp maxcpus=1 panic=-1"
+emulation RunFor "1"
+uart5 WriteLine "bootm 88100000"
+
+# Wait for full boot
+emulation RunFor "300"
+
+# Login
+uart5 WriteLine ""
+emulation RunFor "3"
+uart5 WriteLine ""
+emulation RunFor "3"
+uart5 WriteLine "root"
+emulation RunFor "10"
+uart5 WriteLine "0penBmc"
+emulation RunFor "15"
+
+# Configure networking (fallback if DHCP didn't assign)
+uart5 WriteLine "ip addr show eth0 | grep -q 10.0.2.15 || { ip addr add 10.0.2.15/24 dev eth0; ip route add default via 10.0.2.2; }"
+emulation RunFor "5"
+
+# Smoke test: confirm BMC can reach host's spdm_responder_emu
+uart5 WriteLine "echo '=== TCP reachability check ==='"
+emulation RunFor "1"
+uart5 WriteLine "(timeout 3 bash -c 'cat </dev/tcp/10.0.2.2/2323 >/dev/null 2>&1' && echo TCP_REACHABLE) || echo TCP_UNREACHABLE"
+emulation RunFor "5"
+
+# Drop entity-manager config so spdmd's TCPTransportDiscovery sees an
+# SpdmTcpResponder via the object mapper.  Base64-encoded JSON avoids
+# multi-line shell escaping over the UART.
+#
+# Decoded JSON:
+#   [{"Exposes":[{"Name":"TestSpdmTcp","Type":"SpdmTcpResponder",
+#                 "Hostname":"10.0.2.2","Port":2323}],
+#     "Name":"TestTcpBoard","Probe":"TRUE","Type":"Board"}]
+uart5 WriteLine "echo 'W3siRXhwb3NlcyI6W3siTmFtZSI6IlRlc3RTcGRtVGNwIiwiVHlwZSI6IlNwZG1UY3BSZXNwb25kZXIiLCJIb3N0bmFtZSI6IjEwLjAuMi4yIiwiUG9ydCI6MjMyM31dLCJOYW1lIjoiVGVzdFRjcEJvYXJkIiwiUHJvYmUiOiJUUlVFIiwiVHlwZSI6IkJvYXJkIn1d' | base64 -d > /usr/share/entity-manager/configurations/spdm-tcp-test.json"
+emulation RunFor "2"
+uart5 WriteLine "ls -la /usr/share/entity-manager/configurations/spdm-tcp-test.json"
+emulation RunFor "2"
+
+# Reload entity-manager to pick up the new config, then give it a
+# moment to publish the SpdmTcpResponder D-Bus interface
+uart5 WriteLine "systemctl restart xyz.openbmc_project.EntityManager"
+emulation RunFor "20"
+
+# Verify the SpdmTcpResponder interface appeared on D-Bus
+uart5 WriteLine "echo '=== SpdmTcpResponder D-Bus presence check ==='"
+emulation RunFor "1"
+uart5 WriteLine "busctl --no-pager tree xyz.openbmc_project.EntityManager 2>/dev/null | grep -i 'spdm\\|TestSpdmTcp' | head -n 5"
+emulation RunFor "5"
+
+# Restart spdmd so its initial discovery finds the TCP responder
+# (the runtime-add path via 88112 should also fire if entity-manager
+# republishes after spdmd starts; both paths exercise the same code
+# path at the responder-manager layer)
+uart5 WriteLine "systemctl restart spdmd"
+emulation RunFor "60"
+
+# Verify spdmd is running
+uart5 WriteLine "echo '=== spdmd health ==='"
+emulation RunFor "1"
+uart5 WriteLine "systemctl is-active spdmd && echo SPDMD_TCP_OK || echo SPDMD_TCP_FAIL"
+emulation RunFor "3"
+
+# TCP-specific log lines (discovery + attestation)
+uart5 WriteLine "echo '=== spdmd TCP trace ==='"
+emulation RunFor "1"
+uart5 WriteLine "journalctl -u spdmd --no-pager | grep -E 'TCP|Found SPDM|Eager attestation|component_integrity' | tail -n 20"
+emulation RunFor "5"
+
+# ComponentIntegrity D-Bus objects
+uart5 WriteLine "echo '=== ComponentIntegrity D-Bus ==='"
+emulation RunFor "1"
+uart5 WriteLine "busctl --no-pager tree xyz.openbmc_project.SPDM 2>/dev/null | head -n 20"
+emulation RunFor "5"
+
+# Optional Redfish check — requires bmcweb PS7 (88828) on the local
+# bmcweb tree. Hits the host's port 2443 via AddPortForward.  Comment
+# out if the bmcweb ComponentIntegrity route isn't present in this
+# image.
+uart5 WriteLine "echo '=== Redfish ComponentIntegrity (bmcweb) ==='"
+emulation RunFor "1"
+uart5 WriteLine "curl -sk -u root:0penBmc https://127.0.0.1/redfish/v1/ComponentIntegrity 2>/dev/null | head -n 30"
+emulation RunFor "10"
+
+# Final marker so the outer harness (monitor / wakeup script) can
+# detect completion by grepping for SPDMD_TCP_OK or SPDMD_TCP_FAIL.
+
+# Start continuous execution so manual follow-up (RSV, interactive
+# busctl, curl-from-host) can run against the live machine.
+#
+# From the host, once this is running you can:
+#
+#   curl -sk -u root:0penBmc https://127.0.0.1:2443/redfish/v1/ComponentIntegrity
+#   # or interactively SSH if sshd is enabled (uncomment below)
+#
+# To re-attest after the initial run:
+#   (via telnet to 127.0.0.1:1234 — Renode monitor port)
+#   uart5 WriteLine "systemctl restart spdmd"
+start

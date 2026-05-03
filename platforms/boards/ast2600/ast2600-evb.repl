@@ -91,6 +91,10 @@ uart1: UART.NS16550 @ sysbus 0x1E783000
     wideRegisters: true
     IRQ -> gic@47
 
+uart2: UART.NS16550 @ sysbus 0x1E78D000
+    wideRegisters: true
+    IRQ -> gic@48
+
 uart5: UART.NS16550 @ sysbus 0x1E784000
     wideRegisters: true
     IRQ -> gic@8
