@@ -1,0 +1,27 @@
+{
+  "device": {
+    "eid": 20,
+    "uuid": "162023C9-3EC5-4115-95F4-48701D49D675",
+    "name": "GPU0-SPDM-SmallChunk"
+  },
+  "spdm": {
+    "key_dir": "../test-keys/sample",
+    "cert_chain": "bundle_responder.certchain.der",
+    "private_key": "end_responder.key.p8",
+    "max_cert_chunk_size": 64,
+    "measurements": [
+      {
+        "index": 1,
+        "type": "ImmutableROM",
+        "description": "Boot ROM firmware hash",
+        "value": "AABBCCDD11223344AABBCCDD11223344AABBCCDD11223344AABBCCDD11223344"
+      },
+      {
+        "index": 2,
+        "type": "MutableFirmware",
+        "description": "Runtime firmware hash",
+        "value": "DEADBEEF01020304DEADBEEF01020304DEADBEEF01020304DEADBEEF01020304"
+      }
+    ]
+  }
+}

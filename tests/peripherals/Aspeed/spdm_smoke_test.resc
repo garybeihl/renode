@@ -1,0 +1,80 @@
+:name: SPDM Responder Device Smoke & Protocol Test
+:description: Tests SpdmResponderDevice creation, MCTP control, and SPDM protocol messages
+
+# Create test machine with CPU (needed for virtual time) and UART
+mach create "test"
+set platformDesc
+"""
+cpu: CPU.ARMv7A @ sysbus
+    cpuType: "cortex-a7"
+uart1: UART.NS16550 @ sysbus 0x1e783000
+"""
+machine LoadPlatformDescriptionFromString $platformDesc
+cpu IsHalted true
+
+# Create SPDM responder device and connect to UART
+emulation CreateSpdmResponderDevice "spdm_dev" @tests/peripherals/Aspeed/spdm-scenarios/scenario.json
+connector Connect uart1 spdm_dev
+
+# Load Python test helper
+python "exec(open('tests/peripherals/Aspeed/spdm_mctp_helper.py').read())"
+
+# === TEST 1: Smoke test ===
+python "print('\\n=== TEST 1: Smoke Test ===')"
+python "print('PASS: SpdmResponderDevice created and attached')"
+
+# === TEST 2: MCTP GetMessageTypeSupport ===
+python "print('\\n=== TEST 2: MCTP GetMessageTypeSupport ===')"
+python "test_mctp_get_msg_type_support()"
+emulation RunFor "0:0:0.001"
+python "check_mctp_get_msg_type_support(); print(_last_result); assert _last_result.startswith('PASS'), _last_result"
+
+# === TEST 3: SPDM GET_VERSION ===
+python "print('\\n=== TEST 3: SPDM GET_VERSION ===')"
+python "test_spdm_get_version()"
+emulation RunFor "0:0:0.001"
+python "check_spdm_get_version(); print(_last_result); assert _last_result.startswith('PASS'), _last_result"
+
+# === TEST 4: SPDM GET_CAPABILITIES ===
+python "print('\\n=== TEST 4: SPDM GET_CAPABILITIES ===')"
+python "test_spdm_get_capabilities()"
+emulation RunFor "0:0:0.001"
+python "check_spdm_get_capabilities(); print(_last_result); assert _last_result.startswith('PASS'), _last_result"
+
+# === TEST 5: SPDM NEGOTIATE_ALGORITHMS ===
+python "print('\\n=== TEST 5: SPDM NEGOTIATE_ALGORITHMS ===')"
+python "test_spdm_negotiate_algorithms()"
+emulation RunFor "0:0:0.001"
+python "check_spdm_negotiate_algorithms(); print(_last_result); assert _last_result.startswith('PASS'), _last_result"
+
+# === TEST 6: SPDM GET_DIGESTS ===
+python "print('\\n=== TEST 6: SPDM GET_DIGESTS ===')"
+python "test_spdm_get_digests()"
+emulation RunFor "0:0:0.001"
+python "check_spdm_get_digests(); print(_last_result); assert _last_result.startswith('PASS'), _last_result"
+
+# === TEST 7: SPDM GET_CERTIFICATE ===
+python "print('\\n=== TEST 7: SPDM GET_CERTIFICATE ===')"
+python "test_spdm_get_certificate()"
+emulation RunFor "0:0:0.001"
+python "check_spdm_get_certificate(); print(_last_result); assert _last_result.startswith('PASS'), _last_result"
+
+# === TEST 8: SPDM CHALLENGE ===
+python "print('\\n=== TEST 8: SPDM CHALLENGE ===')"
+python "test_spdm_challenge()"
+emulation RunFor "0:0:0.001"
+python "check_spdm_challenge(); print(_last_result); assert _last_result.startswith('PASS'), _last_result"
+
+# === TEST 9: SPDM GET_MEASUREMENTS (count only) ===
+python "print('\\n=== TEST 9: SPDM GET_MEASUREMENTS (count) ===')"
+python "test_spdm_get_measurements_count()"
+emulation RunFor "0:0:0.001"
+python "check_spdm_get_measurements_count(); print(_last_result); assert _last_result.startswith('PASS'), _last_result"
+
+# === TEST 10: SPDM GET_MEASUREMENTS (all, signed) ===
+python "print('\\n=== TEST 10: SPDM GET_MEASUREMENTS (all, signed) ===')"
+python "test_spdm_get_measurements_all_signed()"
+emulation RunFor "0:0:0.001"
+python "check_spdm_get_measurements_all_signed(); print(_last_result); assert _last_result.startswith('PASS'), _last_result"
+
+python "print('\\n=== ALL 10 TESTS PASSED ===')"

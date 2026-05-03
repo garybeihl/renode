@@ -156,6 +156,10 @@
     <Compile Include="Integrations\PldmFirmwareDevice\PldmPlatformHandler.cs" />
     <Compile Include="Integrations\PldmFirmwareDevice\ScenarioConfig.cs" />
     <Compile Include="Integrations\PldmFirmwareDevice\CrcCcitt.cs" />
+    <Compile Include="Integrations\SpdmResponderDevice\SpdmResponderDevice.cs" />
+    <Compile Include="Integrations\SpdmResponderDevice\SpdmProtocolHandler.cs" />
+    <Compile Include="Integrations\SpdmResponderDevice\SpdmScenarioConfig.cs" />
+    <Compile Include="Integrations\SpdmResponderDevice\SpdmMctpControlHandler.cs" />
     <Compile Include="Network\ExternalControl\ICommand.cs" />
     <Compile Include="Network\ExternalControl\Response.cs" />
     <Compile Include="Network\ExternalControl\RunFor.cs" />
@@ -257,6 +261,7 @@
     <Folder Include="Connectors\" />
     <Folder Include="UI\" />
     <Folder Include="Integrations\PldmFirmwareDevice\" />
+    <Folder Include="Integrations\SpdmResponderDevice\" />
     <Folder Include="Resources\" />
     <Folder Include="EmulationEnvironment\" />
   </ItemGroup>

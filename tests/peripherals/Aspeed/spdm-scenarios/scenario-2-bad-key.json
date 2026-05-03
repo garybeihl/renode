@@ -1,0 +1,26 @@
+{
+  "device": {
+    "eid": 21,
+    "uuid": "A7B3F182-9D4E-4C8A-B156-3E0F72A8D4C1",
+    "name": "NIC0-SPDM-BadKey"
+  },
+  "spdm": {
+    "key_dir": "../test-keys/sample",
+    "cert_chain": "bundle_responder.certchain.der",
+    "private_key": "end_requester.key.p8",
+    "measurements": [
+      {
+        "index": 1,
+        "type": "ImmutableROM",
+        "description": "NIC firmware hash",
+        "value": "55667788AABBCCDD55667788AABBCCDD55667788AABBCCDD55667788AABBCCDD"
+      },
+      {
+        "index": 2,
+        "type": "MutableFirmware",
+        "description": "NIC runtime firmware hash",
+        "value": "11223344DEADBEEF11223344DEADBEEF11223344DEADBEEF11223344DEADBEEF"
+      }
+    ]
+  }
+}

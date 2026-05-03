@@ -1,0 +1,26 @@
+{
+  "device": {
+    "eid": 22,
+    "uuid": "3D8E6A15-B2C7-4F9D-A803-6E5B4C1D9F20",
+    "name": "SSD0-SPDM"
+  },
+  "spdm": {
+    "key_dir": "../test-keys/sample",
+    "cert_chain": "bundle_responder.certchain.der",
+    "private_key": "end_responder.key.p8",
+    "measurements": [
+      {
+        "index": 1,
+        "type": "ImmutableROM",
+        "description": "SSD controller firmware hash",
+        "value": "99887766FFEEDDCC99887766FFEEDDCC99887766FFEEDDCC99887766FFEEDDCC"
+      },
+      {
+        "index": 2,
+        "type": "FirmwareConfiguration",
+        "description": "SSD security policy hash",
+        "value": "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789"
+      }
+    ]
+  }
+}

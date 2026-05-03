@@ -1,0 +1,11 @@
+{
+  "device": {
+    "eid": 23,
+    "uuid": "F1E2D3C4-B5A6-4789-8012-3456789ABCDE",
+    "name": "SENSOR0-MCTP"
+  },
+  "spdm": {
+    "advertise_spdm": false,
+    "measurements": []
+  }
+}

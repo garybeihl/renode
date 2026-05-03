@@ -1,0 +1,75 @@
+:name: SPDM CHALLENGE Debug Test
+:description: Debug test for CHALLENGE handler with log-level tracing
+
+mach create "test"
+set platformDesc
+"""
+cpu: CPU.ARMv7A @ sysbus
+    cpuType: "cortex-a7"
+uart1: UART.NS16550 @ sysbus 0x1e783000
+"""
+machine LoadPlatformDescriptionFromString $platformDesc
+cpu IsHalted true
+
+emulation CreateSpdmResponderDevice "spdm_dev" @tests/peripherals/Aspeed/spdm-scenarios/scenario.json
+connector Connect uart1 spdm_dev
+
+log "Loading Python helper"
+python "exec(open('tests/peripherals/Aspeed/spdm_mctp_helper.py').read())"
+log "Python helper loaded"
+
+# Step 1: GET_VERSION
+log "Step 1: sending GET_VERSION"
+python "test_spdm_get_version()"
+log "Step 1: sent, running"
+emulation RunFor "0:0:0.001"
+log "Step 1: checking"
+python "check_spdm_get_version()"
+log "Step 1: done"
+
+# Step 2: GET_CAPABILITIES
+log "Step 2: sending GET_CAPABILITIES"
+python "test_spdm_get_capabilities()"
+log "Step 2: sent, running"
+emulation RunFor "0:0:0.001"
+log "Step 2: checking"
+python "check_spdm_get_capabilities()"
+log "Step 2: done"
+
+# Step 3: NEGOTIATE_ALGORITHMS
+log "Step 3: sending NEGOTIATE_ALGORITHMS"
+python "test_spdm_negotiate_algorithms()"
+log "Step 3: sent, running"
+emulation RunFor "0:0:0.001"
+log "Step 3: checking"
+python "check_spdm_negotiate_algorithms()"
+log "Step 3: done"
+
+# Step 4: GET_DIGESTS
+log "Step 4: sending GET_DIGESTS"
+python "test_spdm_get_digests()"
+log "Step 4: sent, running"
+emulation RunFor "0:0:0.001"
+log "Step 4: checking"
+python "check_spdm_get_digests()"
+log "Step 4: done"
+
+# Step 5: GET_CERTIFICATE
+log "Step 5: sending GET_CERTIFICATE"
+python "test_spdm_get_certificate()"
+log "Step 5: sent, running"
+emulation RunFor "0:0:0.001"
+log "Step 5: checking"
+python "check_spdm_get_certificate()"
+log "Step 5: done"
+
+# Step 6: CHALLENGE
+log "Step 6: about to send CHALLENGE"
+python "test_spdm_challenge()"
+log "Step 6: sent, running"
+emulation RunFor "0:0:0.001"
+log "Step 6: checking"
+python "check_spdm_challenge()"
+log "Step 6: done"
+
+log "=== ALL STEPS DONE ==="

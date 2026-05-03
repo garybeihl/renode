@@ -1,0 +1,44 @@
+{
+  "device": {
+    "eid": 20,
+    "uuid": "162023C9-3EC5-4115-95F4-48701D49D675",
+    "name": "GPU0-SPDM-MultiMeas"
+  },
+  "spdm": {
+    "key_dir": "../test-keys/sample",
+    "cert_chain": "bundle_responder.certchain.der",
+    "private_key": "end_responder.key.p8",
+    "measurements": [
+      {
+        "index": 1,
+        "type": "ImmutableROM",
+        "description": "Boot ROM firmware hash",
+        "value": "AABBCCDD11223344AABBCCDD11223344AABBCCDD11223344AABBCCDD11223344"
+      },
+      {
+        "index": 2,
+        "type": "MutableFirmware",
+        "description": "Runtime firmware hash",
+        "value": "DEADBEEF01020304DEADBEEF01020304DEADBEEF01020304DEADBEEF01020304"
+      },
+      {
+        "index": 3,
+        "type": "HardwareConfiguration",
+        "description": "PCIe topology hash",
+        "value": "1111111122222222333333334444444455555555666666667777777788888888"
+      },
+      {
+        "index": 4,
+        "type": "FirmwareConfiguration",
+        "description": "Security policy hash",
+        "value": "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789"
+      },
+      {
+        "index": 5,
+        "type": "MutableFirmware",
+        "description": "GPU microcode hash",
+        "value": "FEDCBA9876543210FEDCBA9876543210FEDCBA9876543210FEDCBA9876543210"
+      }
+    ]
+  }
+}
