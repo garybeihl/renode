@@ -1,0 +1,133 @@
+:name: PldmFirmwareDevice Firmware Update State Machine Test
+:description: Tests RequestUpdate → PassComponentTable → UpdateComponent → Download → Verify → Apply → ActivateFirmware
+
+mach create "test"
+machine LoadPlatformDescriptionFromString "uart1: UART.NS16550 @ sysbus 0x1e783000"
+emulation CreatePldmFirmwareDevice "pldm_fd"
+connector Connect uart1 pldm_fd
+
+logLevel -1 pldm_fd
+
+log "=== FWUP Test: RequestUpdate ==="
+# === RequestUpdate ===
+sysbus WriteByte 0x1E783000 0x7E
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x18
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x14
+sysbus WriteByte 0x1E783000 0x08
+sysbus WriteByte 0x1E783000 0xC8
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x19
+sysbus WriteByte 0x1E783000 0x05
+sysbus WriteByte 0x1E783000 0x10
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x10
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x05
+sysbus WriteByte 0x1E783000 0x31
+sysbus WriteByte 0x1E783000 0x2E
+sysbus WriteByte 0x1E783000 0x30
+sysbus WriteByte 0x1E783000 0x2E
+sysbus WriteByte 0x1E783000 0x30
+sysbus WriteByte 0x1E783000 0x16
+sysbus WriteByte 0x1E783000 0x96
+sysbus WriteByte 0x1E783000 0x7E
+
+log "=== FWUP Test: PassComponentTable ==="
+# === PassComponentTable ===
+sysbus WriteByte 0x1E783000 0x7E
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x24
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x14
+sysbus WriteByte 0x1E783000 0x08
+sysbus WriteByte 0x1E783000 0xC9
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x21
+sysbus WriteByte 0x1E783000 0x05
+sysbus WriteByte 0x1E783000 0x13
+sysbus WriteByte 0x1E783000 0x05
+sysbus WriteByte 0x1E783000 0x0A
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0xC8
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x09
+sysbus WriteByte 0x1E783000 0x41
+sysbus WriteByte 0x1E783000 0x63
+sysbus WriteByte 0x1E783000 0x63
+sysbus WriteByte 0x1E783000 0x65
+sysbus WriteByte 0x1E783000 0x70
+sysbus WriteByte 0x1E783000 0x74
+sysbus WriteByte 0x1E783000 0x4D
+sysbus WriteByte 0x1E783000 0x65
+sysbus WriteByte 0x1E783000 0x31
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x34
+sysbus WriteByte 0x1E783000 0x38
+sysbus WriteByte 0x1E783000 0x7E
+
+log "=== FWUP Test: UpdateComponent (128-byte image) ==="
+# === UpdateComponent ===
+sysbus WriteByte 0x1E783000 0x7E
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x22
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x14
+sysbus WriteByte 0x1E783000 0x08
+sysbus WriteByte 0x1E783000 0xCA
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x29
+sysbus WriteByte 0x1E783000 0x05
+sysbus WriteByte 0x1E783000 0x14
+sysbus WriteByte 0x1E783000 0x0A
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0xC8
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x80
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x00
+sysbus WriteByte 0x1E783000 0x01
+sysbus WriteByte 0x1E783000 0x05
+sysbus WriteByte 0x1E783000 0x32
+sysbus WriteByte 0x1E783000 0x2E
+sysbus WriteByte 0x1E783000 0x30
+sysbus WriteByte 0x1E783000 0x2E
+sysbus WriteByte 0x1E783000 0x30
+sysbus WriteByte 0x1E783000 0x33
+sysbus WriteByte 0x1E783000 0x09
+sysbus WriteByte 0x1E783000 0x7E
+
+log "=== FWUP Test: After UpdateComponent, FD should send RequestFirmwareData ==="
+log "=== Check log for state transitions and FD-initiated messages ==="

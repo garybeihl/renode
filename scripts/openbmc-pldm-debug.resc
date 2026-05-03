@@ -1,0 +1,58 @@
+mach create "ast2600"
+machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
+
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x60000000
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x88000000
+
+sysbus SilenceRange <0x1E630000 0xC4>
+sysbus SilenceRange <0x30000000 0x10000000>
+sysbus SilenceRange <0x1E631000 0xC4>
+sysbus SilenceRange <0x50000000 0x10000000>
+sysbus SilenceRange <0x1E740000 0x10000>
+sysbus SilenceRange <0x1E750000 0x10000>
+sysbus SilenceRange <0x1E6A0000 0x1000>
+sysbus SilenceRange <0x1E6A3000 0x1000>
+sysbus SilenceRange <0x1E700000 0x1000>
+
+logLevel 2
+
+emulation CreateUserNetwork "net" "10.0.2.2" "10.0.2.15"
+emulation CreateSwitch "sw1"
+connector Connect sysbus.eth1 sw1
+connector Connect net sw1
+net AddPortForward "127.0.0.1" 2222 "10.0.2.15" 22
+net EnableNat
+
+# In-process PldmFirmwareDevice with malicious scenario
+emulation CreatePldmFirmwareDevice "pldm_fd" @/home/gmbeihl/claude/pldm-sim/scenarios/reject-update.json
+connector Connect uart1 pldm_fd
+logLevel -1 pldm_fd
+
+uart5 CreateFileBackend @/tmp/openbmc-pldm-debug.txt true
+
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+
+uart5 WriteLine "setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8 nosmp maxcpus=1 panic=-1"
+emulation RunFor "1"
+uart5 WriteLine "bootm 88100000"
+emulation RunFor "300"
+
+uart5 WriteLine "root"
+emulation RunFor "10"
+uart5 WriteLine "0penBmc"
+emulation RunFor "10"
+
+uart5 WriteLine "echo NETWORK_READY"
+emulation RunFor "2"
+
+start

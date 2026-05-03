@@ -1,0 +1,109 @@
+mach create "ast2600"
+machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
+
+# Load firmware into bootrom for u-boot execution
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
+
+# Load firmware into flash backing store (at 0x60000000 = flashMem on sysbus)
+# This populates the MappedMemory that the FMC reads in normal mode at 0x20000000,
+# so the kernel's MTD driver will see real flash data (partitions, rootfs, etc.)
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x60000000
+
+# Load firmware into DRAM for fast bootm (FIT image at offset 0x100000)
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x88000000
+
+sysbus SilenceRange <0x1E630000 0xC4>
+sysbus SilenceRange <0x30000000 0x10000000>
+sysbus SilenceRange <0x1E631000 0xC4>
+sysbus SilenceRange <0x50000000 0x10000000>
+sysbus SilenceRange <0x1E740000 0x10000>
+sysbus SilenceRange <0x1E750000 0x10000>
+sysbus SilenceRange <0x1E6A0000 0x1000>
+sysbus SilenceRange <0x1E6A3000 0x1000>
+sysbus SilenceRange <0x1E700000 0x1000>
+
+logLevel 2
+
+# PTY for MCTP serial on UART1 (/dev/ttyS0 in guest)
+emulation CreateUartPtyTerminal "mctp_serial" "/tmp/renode-mctp-pty" true
+connector Connect uart1 mctp_serial
+
+# Console log capture
+uart5 CreateFileBackend @/tmp/openbmc-pldm-test.txt true
+
+# Autoboot interrupt (20x CR at 0.5s intervals)
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+
+uart5 WriteLine "setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8 nosmp maxcpus=1 panic=-1"
+emulation RunFor "1"
+# Boot from DRAM copy (FIT at offset 0x100000 from load base 0x88000000)
+uart5 WriteLine "bootm 88100000"
+
+# Run long enough for full systemd boot (kernel ~6s + systemd ~120s)
+emulation RunFor "180"
+
+# Guest MCTP setup
+uart5 WriteLine "killall mctp 2>/dev/null; sleep 1"
+emulation RunFor "2"
+uart5 WriteLine "nohup mctp link serial /dev/ttyS0 > /dev/null 2>&1 &"
+emulation RunFor "3"
+uart5 WriteLine "mctp link set mctpserial0 up"
+emulation RunFor "1"
+uart5 WriteLine "mctp addr add 8 dev mctpserial0"
+emulation RunFor "1"
+uart5 WriteLine "mctp route add 20 via mctpserial0"
+emulation RunFor "1"
+
+# --- Interactive from here ---
+# Terminal 1 — Start pldm_sim (requires sudo for TIOCSETD, AF_PACKET, mctp CLI):
+#   sudo LD_LIBRARY_PATH=~/claude/openbmc/libpldm/build-host/src \
+#     ~/claude/pldm-sim/build-host/pldm_sim /tmp/renode-mctp-pty
+#
+# Then in this monitor:
+#   uart5 WriteLine "busctl call au.com.codeconstruct.MCTP1 /au/com/codeconstruct/mctp1/interfaces/mctpserial0 au.com.codeconstruct.MCTP.BusOwner1 AssignEndpointStatic ayy 0 20"
+#   emulation RunFor "5"
+#   uart5 WriteLine "systemctl start pldmd"
+#   emulation RunFor "5"
+#
+# Firmware update:
+#   uart5 WriteLine "exec 5</tmp/test_fw_pkg.pldm && busctl call xyz.openbmc_project.PLDM /xyz/openbmc_project/software/pldm xyz.openbmc_project.Software.Update StartUpdate hs 5 xyz.openbmc_project.Software.ApplyTime.RequestedApplyTimes.Immediate && exec 5<&-"
+#   emulation RunFor "30"

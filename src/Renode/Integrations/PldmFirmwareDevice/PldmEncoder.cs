@@ -49,6 +49,7 @@ namespace Antmicro.Renode.Integrations
         public const byte CmdCancelUpdate = 0x1D;
 
         // PLDM Platform commands
+        public const byte CmdGetSensorReading = 0x11;
         public const byte CmdGetPdr = 0x51;
 
         // Firmware update completion codes
@@ -86,7 +87,32 @@ namespace Antmicro.Renode.Integrations
 
         // Platform PDR types
         public const byte PdrTerminusLocator = 1;
+        public const byte PdrNumericSensor = 2;
         public const byte PdrEntityAuxNames = 9;
+
+        // Sensor data sizes (DSP0248 Table 78)
+        public const byte SensorDataSizeUint8 = 0;
+        public const byte SensorDataSizeSint8 = 1;
+        public const byte SensorDataSizeUint16 = 2;
+        public const byte SensorDataSizeSint16 = 3;
+        public const byte SensorDataSizeUint32 = 4;
+        public const byte SensorDataSizeSint32 = 5;
+        public const byte SensorDataSizeUint64 = 6;
+        public const byte SensorDataSizeSint64 = 7;
+
+        // Range field formats (DSP0248 Table 78)
+        public const byte RangeFieldFormatUint8 = 0;
+        public const byte RangeFieldFormatSint8 = 1;
+        public const byte RangeFieldFormatUint16 = 2;
+        public const byte RangeFieldFormatSint16 = 3;
+        public const byte RangeFieldFormatUint32 = 4;
+        public const byte RangeFieldFormatSint32 = 5;
+        public const byte RangeFieldFormatReal32 = 6;
+        public const byte RangeFieldFormatUint64 = 7;
+        public const byte RangeFieldFormatSint64 = 8;
+
+        // Sensor operational state
+        public const byte SensorOpStateEnabled = 0x00;
 
         // Platform error codes
         public const byte PlatformInvalidRecordHandle = 0x83;
@@ -146,6 +172,36 @@ namespace Antmicro.Renode.Integrations
             buf[offset + 1] = (byte)((value >> 8) & 0xFF);
             buf[offset + 2] = (byte)((value >> 16) & 0xFF);
             buf[offset + 3] = (byte)((value >> 24) & 0xFF);
+        }
+
+        public static ulong ReadLE64(byte[] buf, int offset)
+        {
+            return (ulong)buf[offset] | ((ulong)buf[offset + 1] << 8) |
+                ((ulong)buf[offset + 2] << 16) | ((ulong)buf[offset + 3] << 24) |
+                ((ulong)buf[offset + 4] << 32) | ((ulong)buf[offset + 5] << 40) |
+                ((ulong)buf[offset + 6] << 48) | ((ulong)buf[offset + 7] << 56);
+        }
+
+        public static void WriteLE64(byte[] buf, int offset, ulong value)
+        {
+            buf[offset] = (byte)(value & 0xFF);
+            buf[offset + 1] = (byte)((value >> 8) & 0xFF);
+            buf[offset + 2] = (byte)((value >> 16) & 0xFF);
+            buf[offset + 3] = (byte)((value >> 24) & 0xFF);
+            buf[offset + 4] = (byte)((value >> 32) & 0xFF);
+            buf[offset + 5] = (byte)((value >> 40) & 0xFF);
+            buf[offset + 6] = (byte)((value >> 48) & 0xFF);
+            buf[offset + 7] = (byte)((value >> 56) & 0xFF);
+        }
+
+        public static void WriteReal32LE(byte[] buf, int offset, float value)
+        {
+            var bytes = BitConverter.GetBytes(value);
+            if(!BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(bytes);
+            }
+            Array.Copy(bytes, 0, buf, offset, 4);
         }
     }
 }

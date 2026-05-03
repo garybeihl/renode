@@ -367,8 +367,21 @@ namespace Antmicro.Renode.Integrations
             else
             {
                 TransitionTo(FdState.Download);
-                // Queue RequestFirmwareData
-                QueueRequestFirmwareData();
+                if(componentIndex >= 0 &&
+                   config.Components[componentIndex].MaliciousFakeCompletion)
+                {
+                    // openbmc-security disclosure repro: skip RequestFirmwareData
+                    // entirely and send TransferComplete(success) immediately.
+                    // The FD's own state machine will then chain
+                    // VerifyComplete -> ApplyComplete as each ack arrives.
+                    logger.Log(LogLevel.Warning,
+                        "PLDM FWUP: malicious mode -- skipping RequestFirmwareData, sending fake TransferComplete(success)");
+                    QueueTransferComplete(PldmEncoder.TransferSuccess);
+                }
+                else
+                {
+                    QueueRequestFirmwareData();
+                }
             }
 
             // Response: Header(3) + CC(1) + comp_compatibility_response(1) +

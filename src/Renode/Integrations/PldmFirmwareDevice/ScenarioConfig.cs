@@ -26,6 +26,11 @@ namespace Antmicro.Renode.Integrations
         // decode_update_component_resp() fails. Used to exercise the decode
         // failure path in pldmd.
         public bool MalformedUpdateComponentResponse = false;
+        // Test-only: skip RequestFirmwareData and send TransferComplete(success)
+        // -> VerifyComplete(success) -> ApplyComplete(success) immediately on
+        // UpdateComponent ack. Reproduces the openbmc-security disclosure
+        // attack chain for E2E testing of the DSP0267 §12.6-12.9 phase gate.
+        public bool MaliciousFakeCompletion = false;
     }
 
     public class SensorConfig
@@ -131,6 +136,10 @@ namespace Antmicro.Renode.Integrations
                                 if(jc.ContainsKey("malformed_update_component_response"))
                                 {
                                     sc.MalformedUpdateComponentResponse = (bool)jc["malformed_update_component_response"];
+                                }
+                                if(jc.ContainsKey("malicious_fake_completion"))
+                                {
+                                    sc.MaliciousFakeCompletion = (bool)jc["malicious_fake_completion"];
                                 }
                                 cfg.Components.Add(sc);
                             }

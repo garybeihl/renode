@@ -1,0 +1,73 @@
+mach create "ast2600"
+machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
+
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x60000000
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x88000000
+
+sysbus SilenceRange <0x1E630000 0xC4>
+sysbus SilenceRange <0x30000000 0x10000000>
+sysbus SilenceRange <0x1E631000 0xC4>
+sysbus SilenceRange <0x50000000 0x10000000>
+sysbus SilenceRange <0x1E740000 0x10000>
+sysbus SilenceRange <0x1E750000 0x10000>
+sysbus SilenceRange <0x1E6A0000 0x1000>
+sysbus SilenceRange <0x1E6A3000 0x1000>
+sysbus SilenceRange <0x1E700000 0x1000>
+
+logLevel 2
+
+emulation CreateUartPtyTerminal "mctp_serial" "/tmp/renode-mctp-pty" true
+connector Connect uart1 mctp_serial
+
+uart5 CreateFileBackend @/tmp/openbmc-pldm-test.txt true
+
+# Autoboot interrupt
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+
+uart5 WriteLine "setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8 nosmp maxcpus=1 panic=-1"
+emulation RunFor "1"
+uart5 WriteLine "bootm 88100000"
+
+# Long boot wait (kernel + systemd)
+emulation RunFor "300"
+
+# Auto-login
+uart5 WriteLine "root"
+emulation RunFor "3"
+uart5 WriteLine "0penBmc"
+emulation RunFor "5"
+
+# MCTP serial setup
+uart5 WriteLine "nohup mctp link serial /dev/ttyS0 > /dev/null 2>&1 &"
+emulation RunFor "5"
+uart5 WriteLine "mctp link set mctpserial0 up"
+emulation RunFor "2"
+uart5 WriteLine "mctp addr add 8 dev mctpserial0"
+emulation RunFor "2"
+uart5 WriteLine "mctp route add 20 via mctpserial0"
+emulation RunFor "2"
+
+uart5 WriteLine "echo GUEST_READY"
+emulation RunFor "2"
+
+# --- From here, the host drives interactively via monitor port 1234 ---
+# 1. Start pldm_sim on host with desired scenario
+# 2. Then from monitor:
+#    uart5 WriteLine "busctl call au.com.codeconstruct.MCTP1 /au/com/codeconstruct/mctp1/interfaces/mctpserial0 au.com.codeconstruct.MCTP.BusOwner1 AssignEndpointStatic ayy 0 20"
+#    emulation RunFor "10"
+#    uart5 WriteLine "systemctl start pldmd"
+#    emulation RunFor "120"
+#    uart5 WriteLine "busctl introspect xyz.openbmc_project.PLDM /xyz/openbmc_project/inventory/system/board/GPU0 > /tmp/result.txt 2>&1"
+#    emulation RunFor "5"
+#    uart5 WriteLine "cat /tmp/result.txt"
+#    emulation RunFor "3"

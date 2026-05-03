@@ -174,6 +174,8 @@ namespace Antmicro.Renode.Integrations
             }
             else if(reqType == PldmEncoder.TypePlatform && config.PlatformEnabled)
             {
+                // Platform: GetSensorReading(0x11) → byte 2, bit 1
+                resp[4 + 2] = (byte)(1 << (PldmEncoder.CmdGetSensorReading & 7));
                 // Platform: GetPDR(0x51) → byte 10, bit 1
                 resp[4 + 10] = (byte)(1 << (PldmEncoder.CmdGetPdr & 7));
             }

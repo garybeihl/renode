@@ -1,0 +1,104 @@
+:name: PldmFirmwareDevice Transport Test
+:description: Unit test for MCTP serial transport and protocol handlers
+
+mach create "test"
+machine LoadPlatformDescriptionFromString "uart1: UART.NS16550 @ sysbus 0x1e783000"
+emulation CreatePldmFirmwareDevice "pldm_fd"
+connector Connect uart1 pldm_fd
+
+logLevel -1 pldm_fd
+
+# === Test 1: MCTP SetEID ===
+# Frame: [7E] [01] [09] [01 00 08 C8 00 80 01 00 14] [74 99] [7E]
+sysbus WriteByte 0x1e783000 0x7E
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x09
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x00
+sysbus WriteByte 0x1e783000 0x08
+sysbus WriteByte 0x1e783000 0xC8
+sysbus WriteByte 0x1e783000 0x00
+sysbus WriteByte 0x1e783000 0x80
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x00
+sysbus WriteByte 0x1e783000 0x14
+sysbus WriteByte 0x1e783000 0x74
+sysbus WriteByte 0x1e783000 0x99
+sysbus WriteByte 0x1e783000 0x7E
+
+log "=== Test 1: SetEID - check log for 'MCTP Control: Set Endpoint ID' ==="
+
+# === Test 2: MCTP GetEID ===
+# Frame: [7E] [01] [07] [01 14 08 C9 00 81 02] [7C BE] [7E]
+sysbus WriteByte 0x1e783000 0x7E
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x07
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x14
+sysbus WriteByte 0x1e783000 0x08
+sysbus WriteByte 0x1e783000 0xC9
+sysbus WriteByte 0x1e783000 0x00
+sysbus WriteByte 0x1e783000 0x81
+sysbus WriteByte 0x1e783000 0x02
+sysbus WriteByte 0x1e783000 0x7C
+sysbus WriteByte 0x1e783000 0xBE
+sysbus WriteByte 0x1e783000 0x7E
+
+log "=== Test 2: GetEID - check log for 'MCTP Control: Get Endpoint ID' ==="
+
+# === Test 3: PLDM GetTID ===
+# Frame: [7E] [01] [08] [01 14 08 CA 01 01 00 02] [D7 98] [7E]
+sysbus WriteByte 0x1e783000 0x7E
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x08
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x14
+sysbus WriteByte 0x1e783000 0x08
+sysbus WriteByte 0x1e783000 0xCA
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x00
+sysbus WriteByte 0x1e783000 0x02
+sysbus WriteByte 0x1e783000 0xD7
+sysbus WriteByte 0x1e783000 0x98
+sysbus WriteByte 0x1e783000 0x7E
+
+log "=== Test 3: GetTID - check log for 'GetTID: responding TID=1' ==="
+
+# === Test 4: PLDM GetPLDMTypes ===
+# Frame: [7E] [01] [08] [01 14 08 CB 01 09 00 04] [7F 28] [7E]
+sysbus WriteByte 0x1e783000 0x7E
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x08
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x14
+sysbus WriteByte 0x1e783000 0x08
+sysbus WriteByte 0x1e783000 0xCB
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x09
+sysbus WriteByte 0x1e783000 0x00
+sysbus WriteByte 0x1e783000 0x04
+sysbus WriteByte 0x1e783000 0x7F
+sysbus WriteByte 0x1e783000 0x28
+sysbus WriteByte 0x1e783000 0x7E
+
+log "=== Test 4: GetTypes - check log for 'GetPLDMTypes' ==="
+
+# === Test 5: PLDM QueryDeviceIdentifiers ===
+# Frame: [7E] [01] [08] [01 14 08 CC 01 11 05 01] [25 B6] [7E]
+sysbus WriteByte 0x1e783000 0x7E
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x08
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x14
+sysbus WriteByte 0x1e783000 0x08
+sysbus WriteByte 0x1e783000 0xCC
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x11
+sysbus WriteByte 0x1e783000 0x05
+sysbus WriteByte 0x1e783000 0x01
+sysbus WriteByte 0x1e783000 0x25
+sysbus WriteByte 0x1e783000 0xB6
+sysbus WriteByte 0x1e783000 0x7E
+
+log "=== Test 5: QDI - check log for 'QueryDeviceIdentifiers' ==="
