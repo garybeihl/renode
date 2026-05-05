@@ -41,6 +41,10 @@ emulation CreateNetworkServer "net" "10.0.2.2"
 net StartDHCP "10.0.2.15"
 # Inbound PF for bmcweb so curl-from-host verification still works
 net AddPortForward "127.0.0.1" 2443 "10.0.2.15" 443
+# Outbound NAT: guest TCP connections to gateway IP get proxied to
+# the host loopback. spdmd's SpdmTcpTransport connects to 10.0.2.2:2323
+# which NATs through to the host's spdm_responder_emu on 127.0.0.1:2323.
+net EnableNat
 emulation CreateSwitch "switch"
 connector Connect net switch
 connector Connect sysbus.eth1 switch
@@ -180,6 +184,18 @@ emulation RunFor "3"
 uart5 WriteLine "echo '=== spdmd TCP trace ==='"
 emulation RunFor "1"
 uart5 WriteLine "journalctl -u spdmd --no-pager | grep -E 'TCP|Found SPDM|Eager attestation|component_integrity' | tail -n 20"
+emulation RunFor "5"
+
+# Full spdmd journal for crash diagnosis
+uart5 WriteLine "echo '=== FULL spdmd journal (latest invocation) ==='"
+emulation RunFor "1"
+uart5 WriteLine "journalctl -u spdmd --no-pager -n 80 2>&1 | tail -n 80"
+emulation RunFor "8"
+
+# spdmd unit state + last exit code
+uart5 WriteLine "echo '=== spdmd unit state ==='"
+emulation RunFor "1"
+uart5 WriteLine "systemctl status spdmd --no-pager 2>&1 | head -n 30"
 emulation RunFor "5"
 
 # ComponentIntegrity D-Bus objects
