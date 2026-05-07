@@ -239,15 +239,16 @@ Should Handle Malformed Update Component Response
     Assert Journal Does Not Contain    Firmware update time    FW_TIME
 
 Should Block Malicious Fake Completion Chain
-    [Documentation]    Reproduces the openbmc-security disclosure attack: a
+    [Documentation]    Reproduces the phase-tracking-bypass attack: a
     ...                malicious FD answers UpdateComponent then immediately
     ...                sends TransferComplete(success) without ever pulling
     ...                firmware data. The FD's state machine then chains
     ...                VerifyComplete and ApplyComplete on each ack. Patched
     ...                pldmd must reject TransferComplete on the bytes-served
-    ...                check (DSP0267 §12.7) and the subsequent VerifyComplete
-    ...                / ApplyComplete on the phase check (§12.8 / §12.9), and
-    ...                must NOT report the update as successful.
+    ...                check (DSP0267 Sec. 12.7) and the subsequent
+    ...                VerifyComplete / ApplyComplete on the phase check
+    ...                (Sec. 12.8 / Sec. 12.9), and must NOT report the
+    ...                update as successful.
     [Tags]             pldm    phase-tracking    security
     Requires           booted-state
     Attach PLDM Device    ${MALICIOUS_SCENARIO}
