@@ -1,0 +1,172 @@
+# SPDM TCP endpoint E2E harness — in-process Renode responder variant.
+#
+# Sister to openbmc-rsv-spdm-tcp.resc, which expects an externally-launched
+# libspdm spdm_responder_emu on the host.  This variant stands up the
+# Renode-internal SpdmTcpResponderDevice (C#, listens on 127.0.0.1:2323)
+# so the entire test is self-contained inside the Renode process — no
+# external prerequisites.  Loopback traffic still reaches the BMC via
+# user-mode NAT (gateway 10.0.2.2 -> host 127.0.0.1).
+#
+# Architecture:
+#   BMC spdmd  --TCP--> guest 10.0.2.2:2323  --NatProxy-->
+#       host 127.0.0.1:2323  ==>  SpdmTcpResponderDevice (in Renode)
+#
+# Success indicators captured in /tmp/openbmc-rsv-spdm-tcp-inproc.txt:
+#   - SPDMD_TCP_OK                            (spdmd service up)
+#   - "Found SPDM TCP Responder at 10.0.2.2:2323"
+#   - "Eager attestation PASSED"              (full-stack success)
+#   - ComponentIntegrity D-Bus object present
+
+mach create "ast2600"
+machine LoadPlatformDescription @platforms/boards/ast2600/ast2600-evb.repl
+
+# User-mode network: gateway 10.0.2.2, guest 10.0.2.15.  Outbound TCP
+# from BMC to 10.0.2.2:2323 is NATed to the host's loopback where our
+# in-process SpdmTcpResponderDevice is listening.  CreateUserNetwork
+# (as opposed to CreateNetworkServer) is what the bmcweb TLS E2E .resc
+# uses — confirmed working pattern for guest->host NAT.
+emulation CreateUserNetwork "net" "10.0.2.2" "10.0.2.15"
+emulation CreateSwitch "sw1"
+connector Connect sysbus.eth1 sw1
+connector Connect net sw1
+net AddPortForward "127.0.0.1" 2443 "10.0.2.15" 443
+net EnableNat
+
+# In-process SPDM responder over TCP.  Same scenario JSON + sample keys
+# used by the MCTP variant.  Listens on 127.0.0.1:2323 (default bind
+# address) so NatProxy can reach it via guest->10.0.2.2:2323.
+emulation CreateSpdmTcpResponderDevice "spdm_tcp_resp" 2323 @/home/gmbeihl/claude/renode/tests/peripherals/Aspeed/spdm-scenarios/scenario.json "/home/gmbeihl/claude/renode/tests/peripherals/Aspeed/test-keys/sample"
+
+# Firmware (obmc-phosphor-image built with tcp-investigation branch)
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x0
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x60000000
+sysbus LoadBinary @tests/peripherals/Aspeed/firmware/openbmc-image.bin 0x88000000
+
+sysbus SilenceRange <0x1E630000 0xC4>
+sysbus SilenceRange <0x30000000 0x10000000>
+sysbus SilenceRange <0x1E631000 0xC4>
+sysbus SilenceRange <0x50000000 0x10000000>
+sysbus SilenceRange <0x1E740000 0x10000>
+sysbus SilenceRange <0x1E750000 0x10000>
+sysbus SilenceRange <0x1E6A0000 0x1000>
+sysbus SilenceRange <0x1E6A3000 0x1000>
+sysbus SilenceRange <0x1E700000 0x1000>
+
+# Enable VFP so OpenSSL ECDSA-P256 works in spdmd
+cpu0 FpuEnabled true
+
+logLevel 2
+uart5 CreateFileBackend @/tmp/openbmc-rsv-spdm-tcp-inproc.txt true
+
+# Autoboot interrupt (tap Enter ~20 times to skip the u-boot countdown)
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+emulation RunFor "0.5"
+uart5 WriteChar 0xD
+
+uart5 WriteLine "setenv bootargs console=ttyS4,115200n8 earlycon=uart8250,mmio32,0x1e784000,115200n8 nosmp maxcpus=1 panic=-1"
+emulation RunFor "1"
+uart5 WriteLine "bootm 88100000"
+
+# Wait for full boot
+emulation RunFor "300"
+
+# Login
+uart5 WriteLine ""
+emulation RunFor "3"
+uart5 WriteLine ""
+emulation RunFor "3"
+uart5 WriteLine "root"
+emulation RunFor "10"
+uart5 WriteLine "0penBmc"
+emulation RunFor "15"
+
+# stty cols 1000 to defeat the BMC TTY soft line-wrap that duplicates
+# characters past column 80 (see RENODE_TESTING_GUIDE.md gotcha).
+uart5 WriteLine "stty cols 1000"
+emulation RunFor "2"
+
+# Configure networking on eth1 (the interface connected to sw1 / user
+# network in this .resc).  DHCP should have assigned it; the fallback
+# below force-assigns 10.0.2.15/24 + default route if not.
+uart5 WriteLine "ip -br addr"
+emulation RunFor "2"
+uart5 WriteLine "ip addr show eth1 | grep -q 10.0.2.15 || { ip addr add 10.0.2.15/24 dev eth1; ip link set eth1 up; ip route add default via 10.0.2.2; }"
+emulation RunFor "5"
+uart5 WriteLine "ip -br addr; ip route"
+emulation RunFor "3"
+
+# Smoke test: confirm BMC can reach our in-process responder
+uart5 WriteLine "echo '=== TCP reachability check ==='"
+emulation RunFor "1"
+uart5 WriteLine "(timeout 3 bash -c 'cat </dev/tcp/10.0.2.2/2323 >/dev/null 2>&1' && echo TCP_REACHABLE) || echo TCP_UNREACHABLE"
+emulation RunFor "5"
+
+# Entity-manager config was installed by our bbappend at build time
+# (evb-ast2600-spdm-tcp-test.json with Probe:TRUE).  Confirm it's
+# present and that entity-manager picked it up.
+uart5 WriteLine "echo '=== Bundled entity-manager SPDM TCP config ==='"
+emulation RunFor "1"
+uart5 WriteLine "ls -la /usr/share/entity-manager/configurations/evb-ast2600-spdm-tcp-test.json"
+emulation RunFor "2"
+uart5 WriteLine "busctl --no-pager tree xyz.openbmc_project.EntityManager 2>/dev/null | grep -i 'spdm\\|TestSpdm' | head -n 5"
+emulation RunFor "5"
+
+# Verify spdmd is running and trace its TCP discovery + attestation
+uart5 WriteLine "echo '=== spdmd health ==='"
+emulation RunFor "1"
+uart5 WriteLine "systemctl is-active spdmd && echo SPDMD_TCP_OK || echo SPDMD_TCP_FAIL"
+emulation RunFor "3"
+
+uart5 WriteLine "echo '=== spdmd TCP trace ==='"
+emulation RunFor "1"
+uart5 WriteLine "journalctl -u spdmd --no-pager | grep -E 'TCP|Found SPDM|Eager attestation|component_integrity' | tail -n 20"
+emulation RunFor "5"
+
+uart5 WriteLine "echo '=== FULL spdmd journal ==='"
+emulation RunFor "1"
+uart5 WriteLine "journalctl -u spdmd --no-pager -n 80 2>&1 | tail -n 80"
+emulation RunFor "8"
+
+uart5 WriteLine "echo '=== ComponentIntegrity D-Bus ==='"
+emulation RunFor "1"
+uart5 WriteLine "busctl --no-pager tree xyz.openbmc_project.SPDM 2>/dev/null | head -n 20"
+emulation RunFor "5"
+
+start
